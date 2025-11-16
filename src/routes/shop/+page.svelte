@@ -5,7 +5,7 @@
 	import * as Card from "$lib/components/ui/card/index.js";
 	import { Input } from "$lib/components/ui/input/index.js";
 	import { Skeleton } from "$lib/components/ui/skeleton/index.js";
-
+	import { resolve } from '$app/paths';
 	/** ---- STRONG PRODUCT TYPE ---- **/
 	interface Product {
 		id: number;
@@ -69,9 +69,12 @@
 			
 			<!-- Brand -->
 			<div class="flex items-center">
-				<h1 class="bg-linear-to-r from-white to-gray-400 bg-clip-text text-2xl font-extrabold tracking-wide text-transparent">
+				<button class="bg-linear-to-r from-white to-gray-400 bg-clip-text text-2xl font-extrabold tracking-wide text-transparent"
+				   onclick={() => loadProducts("")}
+				>
+				
 					Obsonarium
-				</h1>
+			</button>
 			</div>
 
 			<!-- 🔎 Search -->
