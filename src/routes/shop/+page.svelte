@@ -1,28 +1,31 @@
 <script lang="ts">
 	import { onMount } from "svelte";
-	import { Search, ShoppingCart } from "@lucide/svelte"; // X removed
+	import { Search, ShoppingCart, Loader2 } from "@lucide/svelte";
 	import { Button } from "$lib/components/ui/button/index.js";
 	import * as Card from "$lib/components/ui/card/index.js";
 	import { Input } from "$lib/components/ui/input/index.js";
 	import { Skeleton } from "$lib/components/ui/skeleton/index.js";
-	import { resolve } from '$app/paths';
-	/** ---- STRONG PRODUCT TYPE ---- **/
+	import { toast } from "svelte-sonner";
+
+	/** ---- PRODUCT TYPE ---- **/
 	interface Product {
 		id: number;
 		name: string;
 		price: number;
 		image: string;
 		stock_qty: number;
+
+		cartQty: number | null;   // null → not added yet
+		isQtyLoading: boolean;    // spinner while waiting
 	}
 
 	let searchQuery = $state<string>("");
 	let loading = $state<boolean>(true);
 	let errorMessage = $state<string | null>(null);
 
-	// Typed product array
 	let products = $state<Product[]>([]);
 
-	/** ---- LOAD PRODUCTS FROM BACKEND ---- **/
+	/** ---- LOAD PRODUCTS ---- **/
 	async function loadProducts(query: string) {
 		loading = true;
 		errorMessage = null;
@@ -43,8 +46,12 @@
 				name: product.Name,
 				price: product.Price,
 				image: product.Image_url,
-				stock_qty: product.Stock_qty
+				stock_qty: product.Stock_qty,
+
+				cartQty: null,
+				isQtyLoading: false
 			}));
+
 		} catch (err) {
 			console.error(err);
 			errorMessage = "Failed to fetch products.";
@@ -56,28 +63,151 @@
 
 	onMount(() => loadProducts(""));
 
-	/** ---- SEARCH BUTTON ---- **/
+	/** ---- SEARCH ---- **/
 	function performSearch() {
 		if (searchQuery.trim() === "") return;
 		loadProducts(searchQuery);
+	}
+
+	/** ------------------------------------------------------------------
+	    ADD TO CART (unified logic with + button)
+	   ------------------------------------------------------------------ **/
+	async function addToCart(productId: number) {
+		const p = products.find(p => p.id === productId);
+		if (!p) return;
+
+		// Start spinner immediately
+		p.isQtyLoading = true;
+
+		// Show quantity controls immediately
+		if (p.cartQty === null) p.cartQty = 0;
+
+		// Optimistic: pretend we're adding one
+		const optimistic = p.cartQty + 1;
+		p.cartQty = optimistic;
+
+		// Success toast stays as requested
+		toast.success(`${p.name} added to cart`, { duration: 2000 });
+
+		try {
+			const res = await fetch("/api/cart/", {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({
+					product_id: productId,
+					quantity: 1
+				})
+			});
+
+			if (!res.ok) throw new Error("Add to cart failed");
+
+			const data = await res.json();
+
+			p.cartQty = data.quantity;  // backend truth
+			p.isQtyLoading = false;
+
+		} catch (err) {
+			console.error(err);
+
+			// Rollback
+			p.cartQty = null;
+			p.isQtyLoading = false;
+
+			toast.error("Failed to add to cart");
+		}
+	}
+
+	/** ---- INCREASE QUANTITY ---- **/
+	async function increaseQty(productId: number) {
+		const p = products.find(p => p.id === productId);
+		if (!p || p.cartQty === null) return;
+
+		const oldQty = p.cartQty;
+
+		// Optimistic
+		p.cartQty++;
+		p.isQtyLoading = true;
+
+		try {
+			const res = await fetch("/api/cart/", {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({
+					product_id: productId,
+					quantity: 1
+				})
+			});
+
+			if (!res.ok) throw new Error("Failed to update quantity");
+
+			const data = await res.json();
+			p.cartQty = data.quantity;
+			p.isQtyLoading = false;
+
+		} catch (err) {
+			console.error(err);
+			p.cartQty = oldQty;
+			p.isQtyLoading = false;
+			toast.error("Failed to update quantity");
+		}
+	}
+
+	/** ---- DECREASE QUANTITY ---- **/
+	async function decreaseQty(productId: number) {
+		const p = products.find(p => p.id === productId);
+		if (!p || p.cartQty === null) return;
+
+		const oldQty = p.cartQty;
+
+		// optimistic
+		p.cartQty--;
+		p.isQtyLoading = true;
+
+		try {
+			const res = await fetch("/api/cart/", {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({
+					product_id: productId,
+					quantity: -1
+				})
+			});
+
+			if (!res.ok) throw new Error("Failed to update quantity");
+
+			const data = await res.json();
+
+			p.cartQty = data.quantity;
+
+			if (p.cartQty <= 0) {
+				p.cartQty = null;
+			}
+
+			p.isQtyLoading = false;
+
+		} catch (err) {
+			console.error(err);
+			p.cartQty = oldQty;
+			p.isQtyLoading = false;
+			toast.error("Failed to update quantity");
+		}
 	}
 </script>
 
 <div class="min-h-screen bg-background">
 	<header class="sticky top-0 z-50 w-full border-b border-border bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/60">
 		<div class="container mx-auto grid h-16 grid-cols-3 items-center gap-4 px-4">
-			
+
 			<!-- Brand -->
 			<div class="flex items-center">
 				<button class="bg-linear-to-r from-white to-gray-400 bg-clip-text text-2xl font-extrabold tracking-wide text-transparent"
-				   onclick={() => loadProducts("")}
+								onclick={() => loadProducts("")}
 				>
-				
 					Obsonarium
-			</button>
+				</button>
 			</div>
 
-			<!-- 🔎 Search -->
+			<!-- Search -->
 			<div class="flex items-center mx-auto w-full max-w-xl gap-2 relative">
 				<div class="relative flex-1">
 					<Search class="absolute left-4 top-1/2 size-5 -translate-y-1/2 text-muted-foreground" />
@@ -96,7 +226,6 @@
 					/>
 				</div>
 
-				<!-- Search Button -->
 				<Button
 					class="h-11 px-4"
 					onclick={performSearch}
@@ -110,7 +239,8 @@
 			<div class="flex justify-end">
 				<Button variant="ghost" size="icon" class="relative">
 					<ShoppingCart class="size-5" />
-					<span class="absolute -right-1 -top-1 flex size-5 items-center justify-center rounded-full bg-primary text-xs font-medium text-primary-foreground">
+					<span class="absolute -right-1 -top-1 flex size-5 items-center justify-center
+						rounded-full bg-primary text-xs font-medium text-primary-foreground">
 						0
 					</span>
 				</Button>
@@ -133,13 +263,11 @@
 						<div class="relative aspect-square w-full bg-muted">
 							<Skeleton class="h-full w-full" />
 						</div>
-
 						<Card.Content class="p-4">
 							<Card.Header class="p-0 pb-2">
 								<Skeleton class="h-6 w-3/4 mb-2" />
 								<Skeleton class="h-4 w-full" />
 							</Card.Header>
-
 							<Card.Footer class="flex items-center justify-between p-0 pt-4">
 								<Skeleton class="h-6 w-20" />
 								<Skeleton class="h-9 w-24" />
@@ -150,47 +278,94 @@
 			</div>
 
 		{:else}
-			<!-- Products -->
+			<!-- Product Grid -->
 			<div class="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
 				{#each products as product (product.id)}
 					<Card.Root class="group overflow-hidden transition-shadow hover:shadow-lg">
+
 						<a href="/shop/{product.id}" class="block relative aspect-square w-full overflow-hidden bg-muted">
-							<img
-								src={product.image}
-								alt={product.name}
-								class="h-full w-full object-cover transition-transform group-hover:scale-105"
+							<img src={product.image} alt={product.name}
+									 class="h-full w-full object-cover transition-transform group-hover:scale-105"
 							/>
 						</a>
 
 						<Card.Content class="p-4">
+
 							<Card.Header class="p-0 pb-2">
 								<a href="/shop/{product.id}" class="hover:text-primary transition-colors">
-									<Card.Title class="text-lg font-semibold line-clamp-1">{product.name}</Card.Title>
+									<Card.Title class="text-lg font-semibold line-clamp-1">
+										{product.name}
+									</Card.Title>
 								</a>
 
 								{#if product.stock_qty > 0}
-									<Card.Description class="text-sm text-muted-foreground">{product.stock_qty} in stock</Card.Description>
+									<Card.Description class="text-sm text-muted-foreground">
+										{product.stock_qty} in stock
+									</Card.Description>
 								{:else}
-									<Card.Description class="text-sm text-destructive">Out of stock</Card.Description>
+									<Card.Description class="text-sm text-destructive">
+										Out of stock
+									</Card.Description>
 								{/if}
 							</Card.Header>
 
 							<Card.Footer class="flex items-center justify-between p-0 pt-4">
 								<span class="text-xl font-bold">${product.price.toFixed(2)}</span>
-								<Button size="sm" disabled={product.stock_qty === 0}>Add to Cart</Button>
+
+								<!-- CART UI -->
+								{#if product.cartQty === null}
+									<!-- Add to Cart Button -->
+									<Button
+										size="sm"
+										disabled={product.stock_qty === 0}
+										onclick={() => addToCart(product.id)}
+									>
+										Add to Cart
+									</Button>
+
+								{:else}
+									<!-- Quantity Controls -->
+									<div class="flex items-center gap-2">
+
+										<Button
+											size="sm"
+											disabled={product.isQtyLoading}
+											onclick={() => decreaseQty(product.id)}
+										>
+											-
+										</Button>
+
+										{#if product.isQtyLoading}
+											<Loader2 class="size-4 animate-spin" />
+										{:else}
+											<span class="font-semibold">{product.cartQty}</span>
+										{/if}
+
+										<Button
+											size="sm"
+											disabled={product.isQtyLoading}
+											onclick={() => increaseQty(product.id)}
+										>
+											+
+										</Button>
+
+									</div>
+								{/if}
+
 							</Card.Footer>
 						</Card.Content>
+
 					</Card.Root>
 				{/each}
 			</div>
 
-			<!-- Empty State -->
 			{#if products.length === 0}
-				<div class="flex flex-col items-center justify-center py-12 text-center">
-					<p class="text-lg font-medium text-muted-foreground">No products found</p>
-					<p class="mt-2 text-sm text-muted-foreground">Try refining your search</p>
+				<div class="pt-12 text-center text-muted-foreground">
+					<p class="text-lg font-medium">No products found</p>
+					<p class="mt-2 text-sm">Try refining your search</p>
 				</div>
 			{/if}
+
 		{/if}
 	</main>
 </div>
