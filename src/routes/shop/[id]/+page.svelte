@@ -23,7 +23,6 @@
 	} | null>(null);
 
 	let retailerName = $state<string | null>(null);
-
 	let currentFetch: AbortController | null = null;
 
 	$effect(() => {
@@ -55,6 +54,7 @@
 				isQtyLoading: false
 			};
 
+			// Retailer info
 			const r = await fetch(`/api/retailers/${product.retailer_id}`, {
 				signal: currentFetch.signal
 			});
@@ -73,7 +73,7 @@
 	}
 
 	/* -------------------------------------------
-	   CART LOGIC: IDENTICAL TO /shop LIST PAGE
+	   CART LOGIC (identical to /shop list)
 	-------------------------------------------- */
 
 	async function addToCart() {
@@ -83,7 +83,6 @@
 		if (product.cartQty === null) product.cartQty = 0;
 
 		product.cartQty++;
-
 		toast.success(`${product.name} added to cart`, { duration: 2000 });
 
 		try {
@@ -166,14 +165,12 @@
 	}
 </script>
 
-<!-- MAIN PAGE CONTENT (header removed — handled by layout) -->
 <main class="container mx-auto px-4 py-8">
-
 	<Button variant="ghost" href="/shop" class="mb-6">
 		<ArrowLeft class="size-4 mr-2" /> Back to Shop
 	</Button>
 
-	<!-- Loading state -->
+	<!-- Loading -->
 	{#if loading}
 		<div class="grid gap-8 md:grid-cols-2">
 			<div class="aspect-square w-full overflow-hidden rounded-lg bg-muted">
@@ -186,6 +183,7 @@
 			</div>
 		</div>
 
+	<!-- Error -->
 	{:else if error}
 		<Card.Root class="max-w-md mx-auto">
 			<Card.Content class="p-6 text-center">
@@ -194,6 +192,7 @@
 			</Card.Content>
 		</Card.Root>
 
+	<!-- Product -->
 	{:else if product}
 		<div class="grid gap-8 md:grid-cols-2">
 
@@ -201,18 +200,17 @@
 				<img src={product.image} class="h-full w-full object-cover" />
 			</div>
 
-			<!-- Product info -->
 			<div class="space-y-6">
 				<h1 class="text-3xl font-bold">{product.name}</h1>
 				<p class="text-3xl font-bold">${product.price.toFixed(2)}</p>
 				<p class="text-muted-foreground">{product.description}</p>
 
-				<!-- Cart controls -->
+				<!-- CART CONTROLS -->
 				<div class="flex gap-3">
 					{#if product.cartQty === null}
 						<Button size="lg" class="flex-1"
-										disabled={product.stock_qty === 0}
-										onclick={addToCart}>
+							disabled={product.stock_qty === 0}
+							onclick={addToCart}>
 							Add to Cart
 						</Button>
 					{:else}
@@ -228,10 +226,6 @@
 							<Button size="lg" disabled={product.isQtyLoading} onclick={increaseQty}>+</Button>
 						</div>
 					{/if}
-
-					<Button size="lg" class="flex-1" disabled={product.stock_qty === 0}>
-						Buy Now
-					</Button>
 				</div>
 
 				<Card.Root>

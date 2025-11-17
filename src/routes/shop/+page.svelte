@@ -6,6 +6,7 @@
 	import { Input } from "$lib/components/ui/input/index.js";
 	import { Skeleton } from "$lib/components/ui/skeleton/index.js";
 	import { toast } from "svelte-sonner";
+	import { resolve } from '$app/paths';
 
 	/** ---- PRODUCT TYPE ---- **/
 	interface Product {
@@ -237,14 +238,10 @@
 
 			<!-- Cart -->
 			<div class="flex justify-end">
-				<Button variant="ghost" size="icon" class="relative">
-					<ShoppingCart class="size-5" />
-					<span class="absolute -right-1 -top-1 flex size-5 items-center justify-center
-						rounded-full bg-primary text-xs font-medium text-primary-foreground">
-						0
-					</span>
-				</Button>
-			</div>
+                <Button variant="ghost" size="icon" href={resolve("/cart")}>
+                    <ShoppingCart class="size-5" />
+                </Button>
+            </div>
 		</div>
 	</header>
 
