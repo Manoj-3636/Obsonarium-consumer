@@ -197,7 +197,7 @@
 		<div class="grid gap-8 md:grid-cols-2">
 
 			<div class="aspect-square w-full overflow-hidden rounded-lg bg-muted">
-				<img src={product.image} class="h-full w-full object-cover" />
+				<img alt={product.name} src={product.image} class="h-full w-full object-cover" />
 			</div>
 
 			<div class="space-y-6">
