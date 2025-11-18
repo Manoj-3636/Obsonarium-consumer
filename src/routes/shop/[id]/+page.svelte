@@ -6,6 +6,7 @@
 	import * as Card from "$lib/components/ui/card";
 	import { Skeleton } from "$lib/components/ui/skeleton";
 	import { toast } from "svelte-sonner";
+	import { apiFetch } from "$lib/api";
 
 	let loading = $state(true);
 	let error = $state<string | null>(null);
@@ -86,7 +87,7 @@
 		toast.success(`${product.name} added to cart`, { duration: 2000 });
 
 		try {
-			const res = await fetch("/api/cart/", {
+			const res = await apiFetch("/api/cart/", {
 				method: "POST",
 				headers: { "Content-Type": "application/json" },
 				body: JSON.stringify({
@@ -114,7 +115,7 @@
 		product.isQtyLoading = true;
 
 		try {
-			const res = await fetch("/api/cart/", {
+			const res = await apiFetch("/api/cart/", {
 				method: "POST",
 				headers: { "Content-Type": "application/json" },
 				body: JSON.stringify({
@@ -142,7 +143,7 @@
 		product.isQtyLoading = true;
 
 		try {
-			const res = await fetch("/api/cart/", {
+			const res = await apiFetch("/api/cart/", {
 				method: "POST",
 				headers: { "Content-Type": "application/json" },
 				body: JSON.stringify({

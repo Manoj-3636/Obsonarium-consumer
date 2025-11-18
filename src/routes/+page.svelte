@@ -5,8 +5,41 @@
 
 	let visible = false;
 	let tagline = '"You want it, we got it"';
+	
 	onMount(() => {
 		visible = true;
+		
+		// Check if we have a redirect URL stored (after successful login)
+		const redirectUrl = sessionStorage.getItem('redirectAfterLogin');
+		if (redirectUrl) {
+			// Verify user is authenticated before redirecting
+			// Retry a few times in case cookie hasn't been set yet
+			let attempts = 0;
+			const maxAttempts = 5;
+			
+			const checkAuth = async (): Promise<void> => {
+				try {
+					const res = await fetch('/api/cart/number');
+					if (res.ok) {
+						// User is authenticated, redirect to stored URL
+						sessionStorage.removeItem('redirectAfterLogin');
+						window.location.href = redirectUrl;
+						return;
+					}
+				} catch {
+					// Network error or not authenticated
+				}
+				
+				// Retry if we haven't exceeded max attempts
+				if (attempts < maxAttempts) {
+					attempts++;
+					setTimeout(checkAuth, 200);
+				}
+			};
+			
+			// Start checking after a short delay to allow cookie to be set
+			setTimeout(checkAuth, 300);
+		}
 	});
 </script>
 

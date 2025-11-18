@@ -5,6 +5,7 @@
 	import { Button } from "$lib/components/ui/button";
 	import { Skeleton } from "$lib/components/ui/skeleton";
 	import { toast } from "svelte-sonner";
+	import { apiFetch } from "$lib/api";
 
 	interface CartItem {
 		id: number;
@@ -26,7 +27,7 @@
 		errorMessage = null;
 
 		try {
-			const res = await fetch("/api/cart");
+			const res = await apiFetch("/api/cart");
 			if (!res.ok) throw new Error("Failed to fetch cart");
 
 			const data = await res.json();
@@ -65,7 +66,7 @@
 		item.isQtyLoading = true;
 
 		try {
-			const res = await fetch("/api/cart/", {
+			const res = await apiFetch("/api/cart/", {
 				method: "POST",
 				headers: { "Content-Type": "application/json" },
 				body: JSON.stringify({ product_id, quantity: delta })
@@ -95,7 +96,7 @@
 		item.isQtyLoading = true;
 
 		try {
-			const res = await fetch(`/api/cart/${product_id}`, {
+			const res = await apiFetch(`/api/cart/${product_id}`, {
 				method: "DELETE"
 			});
 

@@ -7,6 +7,7 @@
 	import { Skeleton } from "$lib/components/ui/skeleton/index.js";
 	import { toast } from "svelte-sonner";
 	import { resolve } from '$app/paths';
+	import { apiFetch } from "$lib/api";
 
 	/** ---- PRODUCT TYPE ---- **/
 	interface Product {
@@ -91,7 +92,7 @@
 		toast.success(`${p.name} added to cart`, { duration: 2000 });
 
 		try {
-			const res = await fetch("/api/cart/", {
+			const res = await apiFetch("/api/cart/", {
 				method: "POST",
 				headers: { "Content-Type": "application/json" },
 				body: JSON.stringify({
@@ -130,7 +131,7 @@
 		p.isQtyLoading = true;
 
 		try {
-			const res = await fetch("/api/cart/", {
+			const res = await apiFetch("/api/cart/", {
 				method: "POST",
 				headers: { "Content-Type": "application/json" },
 				body: JSON.stringify({
@@ -165,7 +166,7 @@
 		p.isQtyLoading = true;
 
 		try {
-			const res = await fetch("/api/cart/", {
+			const res = await apiFetch("/api/cart/", {
 				method: "POST",
 				headers: { "Content-Type": "application/json" },
 				body: JSON.stringify({
