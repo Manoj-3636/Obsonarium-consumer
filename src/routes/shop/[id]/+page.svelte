@@ -101,7 +101,11 @@
 
 		} catch (err) {
 			product.cartQty = null;
-			toast.error("Failed to add to cart");
+			
+			// Don't show error toast if it's an Unauthorized error (already shown by apiFetch)
+			if (err instanceof Error && err.message !== 'Unauthorized') {
+				toast.error("Failed to add to cart");
+			}
 		}
 
 		product.isQtyLoading = false;
@@ -127,9 +131,13 @@
 			if (!res.ok) throw new Error();
 			product.cartQty = (await res.json()).quantity;
 
-		} catch {
+		} catch (err) {
 			product.cartQty = old;
-			toast.error("Failed to update quantity");
+			
+			// Don't show error toast if it's an Unauthorized error (already shown by apiFetch)
+			if (err instanceof Error && err.message !== 'Unauthorized') {
+				toast.error("Failed to update quantity");
+			}
 		}
 
 		product.isQtyLoading = false;
@@ -157,9 +165,13 @@
 			const newQty = (await res.json()).quantity;
 			product.cartQty = newQty <= 0 ? null : newQty;
 
-		} catch {
+		} catch (err) {
 			product.cartQty = old;
-			toast.error("Failed to update quantity");
+			
+			// Don't show error toast if it's an Unauthorized error (already shown by apiFetch)
+			if (err instanceof Error && err.message !== 'Unauthorized') {
+				toast.error("Failed to update quantity");
+			}
 		}
 
 		product.isQtyLoading = false;

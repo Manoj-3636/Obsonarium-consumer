@@ -115,7 +115,10 @@
 			p.cartQty = null;
 			p.isQtyLoading = false;
 
-			toast.error("Failed to add to cart");
+			// Don't show error toast if it's an Unauthorized error (already shown by apiFetch)
+			if (err instanceof Error && err.message !== 'Unauthorized') {
+				toast.error("Failed to add to cart");
+			}
 		}
 	}
 
@@ -150,7 +153,11 @@
 			console.error(err);
 			p.cartQty = oldQty;
 			p.isQtyLoading = false;
-			toast.error("Failed to update quantity");
+			
+			// Don't show error toast if it's an Unauthorized error (already shown by apiFetch)
+			if (err instanceof Error && err.message !== 'Unauthorized') {
+				toast.error("Failed to update quantity");
+			}
 		}
 	}
 
@@ -191,7 +198,11 @@
 			console.error(err);
 			p.cartQty = oldQty;
 			p.isQtyLoading = false;
-			toast.error("Failed to update quantity");
+			
+			// Don't show error toast if it's an Unauthorized error (already shown by apiFetch)
+			if (err instanceof Error && err.message !== 'Unauthorized') {
+				toast.error("Failed to update quantity");
+			}
 		}
 	}
 </script>

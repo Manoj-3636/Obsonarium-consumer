@@ -83,7 +83,11 @@
 		} catch (err) {
 			console.error(err);
 			item.quantity = oldQty;
-			toast.error("Failed to update quantity");
+			
+			// Don't show error toast if it's an Unauthorized error (already shown by apiFetch)
+			if (err instanceof Error && err.message !== 'Unauthorized') {
+				toast.error("Failed to update quantity");
+			}
 		}
 
 		item.isQtyLoading = false;
@@ -107,7 +111,11 @@
 		} catch (err) {
 			console.error(err);
 			item.isQtyLoading = false;
-			toast.error("Failed to remove item");
+			
+			// Don't show error toast if it's an Unauthorized error (already shown by apiFetch)
+			if (err instanceof Error && err.message !== 'Unauthorized') {
+				toast.error("Failed to remove item");
+			}
 		}
 	}
 
