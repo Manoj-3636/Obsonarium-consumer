@@ -26,6 +26,12 @@
 	let errorMessage = $state<string | null>(null);
 
 	let products = $state<Product[]>([]);
+	let allProducts = $state<Product[]>([]); // Store all products for filtering
+
+	// Filter and sort state
+	let minPrice = $state<number | null>(null);
+	let maxPrice = $state<number | null>(null);
+	let sortBy = $state<string>("default"); // "default", "price_asc", "price_desc"
 
 	/** ---- LOAD PRODUCTS ---- **/
 	async function loadProducts(query: string) {
@@ -43,7 +49,7 @@
 
 			const data = await response.json();
 
-			products = data.products.map((product: any): Product => ({
+			allProducts = data.products.map((product: any): Product => ({
 				id: product.Id,
 				name: product.Name,
 				price: product.Price,
@@ -53,6 +59,8 @@
 				cartQty: null,
 				isQtyLoading: false
 			}));
+
+			applyFiltersAndSort();
 
 		} catch (err) {
 			console.error(err);
@@ -71,11 +79,72 @@
 		loadProducts(searchQuery);
 	}
 
+	/** ---- FILTER AND SORT ---- **/
+	function applyFiltersAndSort() {
+		let filtered = [...allProducts];
+
+		// Apply price filter
+		if (minPrice !== null && minPrice !== undefined) {
+			const min = minPrice;
+			filtered = filtered.filter(p => p.price >= min);
+		}
+		if (maxPrice !== null && maxPrice !== undefined) {
+			const max = maxPrice;
+			filtered = filtered.filter(p => p.price <= max);
+		}
+
+		// Apply sorting
+		if (sortBy === "price_asc") {
+			filtered.sort((a, b) => a.price - b.price);
+		} else if (sortBy === "price_desc") {
+			filtered.sort((a, b) => b.price - a.price);
+		}
+		// "default" keeps original order (already sorted by backend)
+
+		// Preserve cart quantities from products array when filtering
+		// Match by product ID to keep cart state
+		const cartQuantityMap = new Map(products.map(p => [p.id, { cartQty: p.cartQty, isQtyLoading: p.isQtyLoading }]));
+		filtered = filtered.map(p => {
+			const cartData = cartQuantityMap.get(p.id);
+			if (cartData) {
+				p.cartQty = cartData.cartQty;
+				p.isQtyLoading = cartData.isQtyLoading;
+			}
+			return p;
+		});
+
+		products = filtered;
+	}
+
+	function handleMinPriceChange(value: string) {
+		minPrice = value === "" ? null : parseFloat(value);
+		applyFiltersAndSort();
+	}
+
+	function handleMaxPriceChange(value: string) {
+		maxPrice = value === "" ? null : parseFloat(value);
+		applyFiltersAndSort();
+	}
+
+	function handleSortChange(newSort: string) {
+		sortBy = newSort;
+		applyFiltersAndSort();
+	}
+
+	function clearFilters() {
+		minPrice = null;
+		maxPrice = null;
+		sortBy = "default";
+		applyFiltersAndSort();
+	}
+
 	/** ------------------------------------------------------------------
 	    ADD TO CART (unified logic with + button)
 	   ------------------------------------------------------------------ **/
 	async function addToCart(productId: number) {
+		// Update in both products and allProducts to preserve state
 		const p = products.find(p => p.id === productId);
+		const allP = allProducts.find(p => p.id === productId);
 		if (!p) return;
 
 		// Start spinner immediately
@@ -84,9 +153,13 @@
 		// Show quantity controls immediately
 		if (p.cartQty === null) p.cartQty = 0;
 
-		// Optimistic: pretend we're adding one
+		// Optimistic: pretend we're adding one - update both arrays
 		const optimistic = p.cartQty + 1;
 		p.cartQty = optimistic;
+		if (allP) {
+			allP.cartQty = optimistic;
+			allP.isQtyLoading = true;
+		}
 
 		// Success toast stays as requested
 		toast.success(`${p.name} added to cart`, { duration: 2000 });
@@ -107,31 +180,45 @@
 
 			p.cartQty = data.quantity;  // backend truth
 			p.isQtyLoading = false;
+			if (allP) {
+				allP.cartQty = data.quantity;
+				allP.isQtyLoading = false;
+			}
 
 		} catch (err) {
 			console.error(err);
 
-			// Rollback
+			// Rollback - update both arrays
 			p.cartQty = null;
 			p.isQtyLoading = false;
+			if (allP) {
+				allP.cartQty = null;
+				allP.isQtyLoading = false;
+			}
 
 			// Don't show error toast if it's an Unauthorized error (already shown by apiFetch)
 			if (err instanceof Error && err.message !== 'Unauthorized') {
-				toast.error("Failed to add to cart");
+			toast.error("Failed to add to cart");
 			}
 		}
 	}
 
 	/** ---- INCREASE QUANTITY ---- **/
 	async function increaseQty(productId: number) {
+		// Update in both products and allProducts to preserve state
 		const p = products.find(p => p.id === productId);
+		const allP = allProducts.find(p => p.id === productId);
 		if (!p || p.cartQty === null) return;
 
 		const oldQty = p.cartQty;
 
-		// Optimistic
+		// Optimistic - update both arrays
 		p.cartQty++;
 		p.isQtyLoading = true;
+		if (allP) {
+			allP.cartQty = p.cartQty;
+			allP.isQtyLoading = true;
+		}
 
 		try {
 			const res = await apiFetch("/api/cart/", {
@@ -148,29 +235,43 @@
 			const data = await res.json();
 			p.cartQty = data.quantity;
 			p.isQtyLoading = false;
+			if (allP) {
+				allP.cartQty = data.quantity;
+				allP.isQtyLoading = false;
+			}
 
 		} catch (err) {
 			console.error(err);
 			p.cartQty = oldQty;
 			p.isQtyLoading = false;
+			if (allP) {
+				allP.cartQty = oldQty;
+				allP.isQtyLoading = false;
+			}
 			
 			// Don't show error toast if it's an Unauthorized error (already shown by apiFetch)
 			if (err instanceof Error && err.message !== 'Unauthorized') {
-				toast.error("Failed to update quantity");
+			toast.error("Failed to update quantity");
 			}
 		}
 	}
 
 	/** ---- DECREASE QUANTITY ---- **/
 	async function decreaseQty(productId: number) {
+		// Update in both products and allProducts to preserve state
 		const p = products.find(p => p.id === productId);
+		const allP = allProducts.find(p => p.id === productId);
 		if (!p || p.cartQty === null) return;
 
 		const oldQty = p.cartQty;
 
-		// optimistic
+		// optimistic - update both arrays
 		p.cartQty--;
 		p.isQtyLoading = true;
+		if (allP) {
+			allP.cartQty = p.cartQty;
+			allP.isQtyLoading = true;
+		}
 
 		try {
 			const res = await apiFetch("/api/cart/", {
@@ -186,22 +287,27 @@
 
 			const data = await res.json();
 
-			p.cartQty = data.quantity;
-
-			if (p.cartQty <= 0) {
-				p.cartQty = null;
-			}
-
+			const newQty = data.quantity;
+			p.cartQty = newQty <= 0 ? null : newQty;
 			p.isQtyLoading = false;
+
+			if (allP) {
+				allP.cartQty = p.cartQty;
+				allP.isQtyLoading = false;
+			}
 
 		} catch (err) {
 			console.error(err);
 			p.cartQty = oldQty;
 			p.isQtyLoading = false;
+			if (allP) {
+				allP.cartQty = oldQty;
+				allP.isQtyLoading = false;
+			}
 			
 			// Don't show error toast if it's an Unauthorized error (already shown by apiFetch)
 			if (err instanceof Error && err.message !== 'Unauthorized') {
-				toast.error("Failed to update quantity");
+			toast.error("Failed to update quantity");
 			}
 		}
 	}
@@ -262,6 +368,55 @@
 		<div class="mb-8">
 			<h1 class="text-3xl font-bold tracking-tight">Shop</h1>
 			<p class="text-muted-foreground mt-2">Recently added products</p>
+		</div>
+
+		<!-- Filters and Sort -->
+		<div class="mb-6 flex flex-wrap items-center gap-4 rounded-lg border border-border bg-card p-4">
+			<!-- Price Filter -->
+			<div class="flex items-center gap-2">
+				<label class="text-sm font-medium text-muted-foreground">Price:</label>
+				<Input
+					type="number"
+					placeholder="Min"
+					class="w-24"
+					value={minPrice?.toString() ?? ""}
+					oninput={(e) => handleMinPriceChange(e.currentTarget.value)}
+				/>
+				<span class="text-muted-foreground">-</span>
+				<Input
+					type="number"
+					placeholder="Max"
+					class="w-24"
+					value={maxPrice?.toString() ?? ""}
+					oninput={(e) => handleMaxPriceChange(e.currentTarget.value)}
+				/>
+			</div>
+
+			<!-- Sort -->
+			<div class="flex items-center gap-2">
+				<label class="text-sm font-medium text-muted-foreground">Sort:</label>
+				<select
+					class="h-9 rounded-md border border-input bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+					value={sortBy}
+					onchange={(e) => handleSortChange(e.currentTarget.value)}
+				>
+					<option value="default">Default</option>
+					<option value="price_asc">Price: Low to High</option>
+					<option value="price_desc">Price: High to Low</option>
+				</select>
+			</div>
+
+			<!-- Clear Filters -->
+			{#if minPrice !== null || maxPrice !== null || sortBy !== "default"}
+				<Button variant="outline" size="sm" onclick={clearFilters}>
+					Clear Filters
+				</Button>
+			{/if}
+
+			<!-- Results count -->
+			<div class="ml-auto text-sm text-muted-foreground">
+				Showing {products.length} of {allProducts.length} products
+			</div>
 		</div>
 
 		<!-- Loading -->
