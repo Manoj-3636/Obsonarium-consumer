@@ -374,7 +374,7 @@
 		<div class="mb-6 flex flex-wrap items-center gap-4 rounded-lg border border-border bg-card p-4">
 			<!-- Price Filter -->
 			<div class="flex items-center gap-2">
-				<label class="text-sm font-medium text-muted-foreground">Price:</label>
+				<span class="text-sm font-medium text-muted-foreground">Price:</span>
 				<Input
 					type="number"
 					placeholder="Min"
@@ -394,7 +394,7 @@
 
 			<!-- Sort -->
 			<div class="flex items-center gap-2">
-				<label class="text-sm font-medium text-muted-foreground">Sort:</label>
+				<span class="text-sm font-medium text-muted-foreground">Sort:</span>
 				<select
 					class="h-9 rounded-md border border-input bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
 					value={sortBy}
