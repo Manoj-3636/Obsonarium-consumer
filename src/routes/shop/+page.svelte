@@ -1,13 +1,13 @@
 <script lang="ts">
-	import { onMount } from "svelte";
-	import { Search, ShoppingCart, Loader2 } from "@lucide/svelte";
-	import { Button } from "$lib/components/ui/button/index.js";
-	import * as Card from "$lib/components/ui/card/index.js";
-	import { Input } from "$lib/components/ui/input/index.js";
-	import { Skeleton } from "$lib/components/ui/skeleton/index.js";
-	import { toast } from "svelte-sonner";
+	import { onMount } from 'svelte';
+	import { Search, ShoppingCart, Loader2 } from '@lucide/svelte';
+	import { Button } from '$lib/components/ui/button/index.js';
+	import * as Card from '$lib/components/ui/card/index.js';
+	import { Input } from '$lib/components/ui/input/index.js';
+	import { Skeleton } from '$lib/components/ui/skeleton/index.js';
+	import { toast } from 'svelte-sonner';
 	import { resolve } from '$app/paths';
-	import { apiFetch } from "$lib/api";
+	import { apiFetch } from '$lib/api';
 
 	/** ---- PRODUCT TYPE ---- **/
 	interface Product {
@@ -17,11 +17,11 @@
 		image: string;
 		stock_qty: number;
 
-		cartQty: number | null;   // null → not added yet
-		isQtyLoading: boolean;    // spinner while waiting
+		cartQty: number | null; // null → not added yet
+		isQtyLoading: boolean; // spinner while waiting
 	}
 
-	let searchQuery = $state<string>("");
+	let searchQuery = $state<string>('');
 	let loading = $state<boolean>(true);
 	let errorMessage = $state<string | null>(null);
 
@@ -31,7 +31,7 @@
 	// Filter and sort state
 	let minPrice = $state<number | null>(null);
 	let maxPrice = $state<number | null>(null);
-	let sortBy = $state<string>("default"); // "default", "price_asc", "price_desc"
+	let sortBy = $state<string>('default'); // "default", "price_asc", "price_desc"
 
 	/** ---- LOAD PRODUCTS ---- **/
 	async function loadProducts(query: string) {
@@ -40,42 +40,41 @@
 
 		try {
 			const trimmed = query.trim();
-			const url = trimmed
-				? `/api/shop?q=${encodeURIComponent(trimmed)}`
-				: `/api/shop`;
+			const url = trimmed ? `/api/shop?q=${encodeURIComponent(trimmed)}` : `/api/shop`;
 
 			const response = await fetch(url);
-			if (!response.ok) throw new Error("API failure");
+			if (!response.ok) throw new Error('API failure');
 
 			const data = await response.json();
 
-			allProducts = data.products.map((product: any): Product => ({
-				id: product.Id,
-				name: product.Name,
-				price: product.Price,
-				image: product.Image_url,
-				stock_qty: product.Stock_qty,
+			allProducts = data.products.map(
+				(product: any): Product => ({
+					id: product.id,
+					name: product.name,
+					price: product.price,
+					image: product.image_url,
+					stock_qty: product.stock_qty,
 
-				cartQty: null,
-				isQtyLoading: false
-			}));
+					cartQty: null,
+					isQtyLoading: false
+				})
+			);
 
 			applyFiltersAndSort();
-
 		} catch (err) {
 			console.error(err);
-			errorMessage = "Failed to fetch products.";
+			errorMessage = 'Failed to fetch products.';
 			products = [];
 		} finally {
 			loading = false;
 		}
 	}
 
-	onMount(() => loadProducts(""));
+	onMount(() => loadProducts(''));
 
 	/** ---- SEARCH ---- **/
 	function performSearch() {
-		if (searchQuery.trim() === "") return;
+		if (searchQuery.trim() === '') return;
 		loadProducts(searchQuery);
 	}
 
@@ -86,25 +85,27 @@
 		// Apply price filter
 		if (minPrice !== null && minPrice !== undefined) {
 			const min = minPrice;
-			filtered = filtered.filter(p => p.price >= min);
+			filtered = filtered.filter((p) => p.price >= min);
 		}
 		if (maxPrice !== null && maxPrice !== undefined) {
 			const max = maxPrice;
-			filtered = filtered.filter(p => p.price <= max);
+			filtered = filtered.filter((p) => p.price <= max);
 		}
 
 		// Apply sorting
-		if (sortBy === "price_asc") {
+		if (sortBy === 'price_asc') {
 			filtered.sort((a, b) => a.price - b.price);
-		} else if (sortBy === "price_desc") {
+		} else if (sortBy === 'price_desc') {
 			filtered.sort((a, b) => b.price - a.price);
 		}
 		// "default" keeps original order (already sorted by backend)
 
 		// Preserve cart quantities from products array when filtering
 		// Match by product ID to keep cart state
-		const cartQuantityMap = new Map(products.map(p => [p.id, { cartQty: p.cartQty, isQtyLoading: p.isQtyLoading }]));
-		filtered = filtered.map(p => {
+		const cartQuantityMap = new Map(
+			products.map((p) => [p.id, { cartQty: p.cartQty, isQtyLoading: p.isQtyLoading }])
+		);
+		filtered = filtered.map((p) => {
 			const cartData = cartQuantityMap.get(p.id);
 			if (cartData) {
 				p.cartQty = cartData.cartQty;
@@ -117,12 +118,12 @@
 	}
 
 	function handleMinPriceChange(value: string) {
-		minPrice = value === "" ? null : parseFloat(value);
+		minPrice = value === '' ? null : parseFloat(value);
 		applyFiltersAndSort();
 	}
 
 	function handleMaxPriceChange(value: string) {
-		maxPrice = value === "" ? null : parseFloat(value);
+		maxPrice = value === '' ? null : parseFloat(value);
 		applyFiltersAndSort();
 	}
 
@@ -134,7 +135,7 @@
 	function clearFilters() {
 		minPrice = null;
 		maxPrice = null;
-		sortBy = "default";
+		sortBy = 'default';
 		applyFiltersAndSort();
 	}
 
@@ -143,8 +144,8 @@
 	   ------------------------------------------------------------------ **/
 	async function addToCart(productId: number) {
 		// Update in both products and allProducts to preserve state
-		const p = products.find(p => p.id === productId);
-		const allP = allProducts.find(p => p.id === productId);
+		const p = products.find((p) => p.id === productId);
+		const allP = allProducts.find((p) => p.id === productId);
 		if (!p) return;
 
 		// Start spinner immediately
@@ -165,26 +166,25 @@
 		toast.success(`${p.name} added to cart`, { duration: 2000 });
 
 		try {
-			const res = await apiFetch("/api/cart/", {
-				method: "POST",
-				headers: { "Content-Type": "application/json" },
+			const res = await apiFetch('/api/cart/', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({
 					product_id: productId,
 					quantity: 1
 				})
 			});
 
-			if (!res.ok) throw new Error("Add to cart failed");
+			if (!res.ok) throw new Error('Add to cart failed');
 
 			const data = await res.json();
 
-			p.cartQty = data.quantity;  // backend truth
+			p.cartQty = data.quantity; // backend truth
 			p.isQtyLoading = false;
 			if (allP) {
 				allP.cartQty = data.quantity;
 				allP.isQtyLoading = false;
 			}
-
 		} catch (err) {
 			console.error(err);
 
@@ -198,7 +198,7 @@
 
 			// Don't show error toast if it's an Unauthorized error (already shown by apiFetch)
 			if (err instanceof Error && err.message !== 'Unauthorized') {
-			toast.error("Failed to add to cart");
+				toast.error('Failed to add to cart');
 			}
 		}
 	}
@@ -206,8 +206,8 @@
 	/** ---- INCREASE QUANTITY ---- **/
 	async function increaseQty(productId: number) {
 		// Update in both products and allProducts to preserve state
-		const p = products.find(p => p.id === productId);
-		const allP = allProducts.find(p => p.id === productId);
+		const p = products.find((p) => p.id === productId);
+		const allP = allProducts.find((p) => p.id === productId);
 		if (!p || p.cartQty === null) return;
 
 		const oldQty = p.cartQty;
@@ -221,16 +221,16 @@
 		}
 
 		try {
-			const res = await apiFetch("/api/cart/", {
-				method: "POST",
-				headers: { "Content-Type": "application/json" },
+			const res = await apiFetch('/api/cart/', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({
 					product_id: productId,
 					quantity: 1
 				})
 			});
 
-			if (!res.ok) throw new Error("Failed to update quantity");
+			if (!res.ok) throw new Error('Failed to update quantity');
 
 			const data = await res.json();
 			p.cartQty = data.quantity;
@@ -239,7 +239,6 @@
 				allP.cartQty = data.quantity;
 				allP.isQtyLoading = false;
 			}
-
 		} catch (err) {
 			console.error(err);
 			p.cartQty = oldQty;
@@ -248,10 +247,10 @@
 				allP.cartQty = oldQty;
 				allP.isQtyLoading = false;
 			}
-			
+
 			// Don't show error toast if it's an Unauthorized error (already shown by apiFetch)
 			if (err instanceof Error && err.message !== 'Unauthorized') {
-			toast.error("Failed to update quantity");
+				toast.error('Failed to update quantity');
 			}
 		}
 	}
@@ -259,8 +258,8 @@
 	/** ---- DECREASE QUANTITY ---- **/
 	async function decreaseQty(productId: number) {
 		// Update in both products and allProducts to preserve state
-		const p = products.find(p => p.id === productId);
-		const allP = allProducts.find(p => p.id === productId);
+		const p = products.find((p) => p.id === productId);
+		const allP = allProducts.find((p) => p.id === productId);
 		if (!p || p.cartQty === null) return;
 
 		const oldQty = p.cartQty;
@@ -274,16 +273,16 @@
 		}
 
 		try {
-			const res = await apiFetch("/api/cart/", {
-				method: "POST",
-				headers: { "Content-Type": "application/json" },
+			const res = await apiFetch('/api/cart/', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({
 					product_id: productId,
 					quantity: -1
 				})
 			});
 
-			if (!res.ok) throw new Error("Failed to update quantity");
+			if (!res.ok) throw new Error('Failed to update quantity');
 
 			const data = await res.json();
 
@@ -295,7 +294,6 @@
 				allP.cartQty = p.cartQty;
 				allP.isQtyLoading = false;
 			}
-
 		} catch (err) {
 			console.error(err);
 			p.cartQty = oldQty;
@@ -304,23 +302,25 @@
 				allP.cartQty = oldQty;
 				allP.isQtyLoading = false;
 			}
-			
+
 			// Don't show error toast if it's an Unauthorized error (already shown by apiFetch)
 			if (err instanceof Error && err.message !== 'Unauthorized') {
-			toast.error("Failed to update quantity");
+				toast.error('Failed to update quantity');
 			}
 		}
 	}
 </script>
 
 <div class="min-h-screen bg-background">
-	<header class="sticky top-0 z-50 w-full border-b border-border bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/60">
+	<header
+		class="sticky top-0 z-50 w-full border-b border-border bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/60"
+	>
 		<div class="container mx-auto grid h-16 grid-cols-3 items-center gap-4 px-4">
-
 			<!-- Brand -->
 			<div class="flex items-center">
-				<button class="bg-linear-to-r from-white to-gray-400 bg-clip-text text-2xl font-extrabold tracking-wide text-transparent"
-								onclick={() => loadProducts("")}
+				<button
+					class="bg-linear-to-r from-white to-gray-400 bg-clip-text text-2xl font-extrabold tracking-wide text-transparent"
+					onclick={() => loadProducts('')}
 				>
 					Obsonarium
 				</button>
@@ -337,7 +337,7 @@
 						bind:value={searchQuery}
 						class="w-full h-11 pl-11 pr-10 text-base"
 						onkeydown={(e) => {
-							if (e.key === "Enter" && searchQuery.trim() !== "") {
+							if (e.key === 'Enter' && searchQuery.trim() !== '') {
 								e.preventDefault();
 								performSearch();
 							}
@@ -345,21 +345,17 @@
 					/>
 				</div>
 
-				<Button
-					class="h-11 px-4"
-					onclick={performSearch}
-					disabled={searchQuery.trim() === ""}
-				>
+				<Button class="h-11 px-4" onclick={performSearch} disabled={searchQuery.trim() === ''}>
 					<Search class="size-4 mr-2" /> Search
 				</Button>
 			</div>
 
 			<!-- Cart -->
 			<div class="flex justify-end">
-                <Button variant="ghost" size="icon" href={resolve("/cart")}>
-                    <ShoppingCart class="size-5" />
-                </Button>
-            </div>
+				<Button variant="ghost" size="icon" href={resolve('/cart')}>
+					<ShoppingCart class="size-5" />
+				</Button>
+			</div>
 		</div>
 	</header>
 
@@ -379,7 +375,7 @@
 					type="number"
 					placeholder="Min"
 					class="w-24"
-					value={minPrice?.toString() ?? ""}
+					value={minPrice?.toString() ?? ''}
 					oninput={(e) => handleMinPriceChange(e.currentTarget.value)}
 				/>
 				<span class="text-muted-foreground">-</span>
@@ -387,7 +383,7 @@
 					type="number"
 					placeholder="Max"
 					class="w-24"
-					value={maxPrice?.toString() ?? ""}
+					value={maxPrice?.toString() ?? ''}
 					oninput={(e) => handleMaxPriceChange(e.currentTarget.value)}
 				/>
 			</div>
@@ -407,10 +403,8 @@
 			</div>
 
 			<!-- Clear Filters -->
-			{#if minPrice !== null || maxPrice !== null || sortBy !== "default"}
-				<Button variant="outline" size="sm" onclick={clearFilters}>
-					Clear Filters
-				</Button>
+			{#if minPrice !== null || maxPrice !== null || sortBy !== 'default'}
+				<Button variant="outline" size="sm" onclick={clearFilters}>Clear Filters</Button>
 			{/if}
 
 			<!-- Results count -->
@@ -440,21 +434,23 @@
 					</Card.Root>
 				{/each}
 			</div>
-
 		{:else}
 			<!-- Product Grid -->
 			<div class="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
 				{#each products as product (product.id)}
 					<Card.Root class="group overflow-hidden transition-shadow hover:shadow-lg">
-
-						<a href="/shop/{product.id}" class="block relative aspect-square w-full overflow-hidden bg-muted">
-							<img src={product.image} alt={product.name}
-									 class="h-full w-full object-cover transition-transform group-hover:scale-105"
+						<a
+							href="/shop/{product.id}"
+							class="block relative aspect-square w-full overflow-hidden bg-muted"
+						>
+							<img
+								src={product.image}
+								alt={product.name}
+								class="h-full w-full object-cover transition-transform group-hover:scale-105"
 							/>
 						</a>
 
 						<Card.Content class="p-4">
-
 							<Card.Header class="p-0 pb-2">
 								<a href="/shop/{product.id}" class="hover:text-primary transition-colors">
 									<Card.Title class="text-lg font-semibold line-clamp-1">
@@ -467,14 +463,12 @@
 										{product.stock_qty} in stock
 									</Card.Description>
 								{:else}
-									<Card.Description class="text-sm text-destructive">
-										Out of stock
-									</Card.Description>
+									<Card.Description class="text-sm text-destructive">Out of stock</Card.Description>
 								{/if}
 							</Card.Header>
 
 							<Card.Footer class="flex items-center justify-between p-0 pt-4">
-								<span class="text-xl font-bold">${product.price.toFixed(2)}</span>
+								<span class="text-xl font-bold">₹{product.price.toFixed(2)}</span>
 
 								<!-- CART UI -->
 								{#if product.cartQty === null}
@@ -486,11 +480,9 @@
 									>
 										Add to Cart
 									</Button>
-
 								{:else}
 									<!-- Quantity Controls -->
 									<div class="flex items-center gap-2">
-
 										<Button
 											size="sm"
 											disabled={product.isQtyLoading}
@@ -512,13 +504,10 @@
 										>
 											+
 										</Button>
-
 									</div>
 								{/if}
-
 							</Card.Footer>
 						</Card.Content>
-
 					</Card.Root>
 				{/each}
 			</div>
@@ -529,7 +518,6 @@
 					<p class="mt-2 text-sm">Try refining your search</p>
 				</div>
 			{/if}
-
 		{/if}
 	</main>
 </div>

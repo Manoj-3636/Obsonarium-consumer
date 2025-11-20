@@ -1,12 +1,12 @@
 <script lang="ts">
-	import { onMount } from "svelte";
-	import { page } from "$app/stores";
-	import { ArrowLeft, Loader2 } from "@lucide/svelte";
-	import { Button } from "$lib/components/ui/button";
-	import * as Card from "$lib/components/ui/card";
-	import { Skeleton } from "$lib/components/ui/skeleton";
-	import { toast } from "svelte-sonner";
-	import { apiFetch } from "$lib/api";
+	import { onMount } from 'svelte';
+	import { page } from '$app/stores';
+	import { ArrowLeft, Loader2 } from '@lucide/svelte';
+	import { Button } from '$lib/components/ui/button';
+	import * as Card from '$lib/components/ui/card';
+	import { Skeleton } from '$lib/components/ui/skeleton';
+	import { toast } from 'svelte-sonner';
+	import { apiFetch } from '$lib/api';
 
 	let loading = $state(true);
 	let error = $state<string | null>(null);
@@ -39,18 +39,18 @@
 
 		try {
 			const res = await fetch(`/api/shop/${id}`, { signal: currentFetch.signal });
-			if (!res.ok) throw new Error("Failed to fetch");
+			if (!res.ok) throw new Error('Failed to fetch');
 
 			const data = await res.json();
 
 			product = {
-				id: data.product.Id,
-				name: data.product.Name,
-				price: data.product.Price,
-				image: data.product.Image_url,
-				stock_qty: data.product.Stock_qty,
-				retailer_id: data.product.Retailer_id,
-				description: data.product.Description,
+				id: data.product.id,
+				name: data.product.name,
+				price: data.product.price,
+				image: data.product.image_url,
+				stock_qty: data.product.stock_qty,
+				retailer_id: data.product.retailer_id,
+				description: data.product.description,
 				cartQty: null,
 				isQtyLoading: false
 			};
@@ -60,12 +60,11 @@
 				signal: currentFetch.signal
 			});
 			if (r.ok) {
-				retailerName = (await r.json()).retailer.Name;
+				retailerName = (await r.json()).retailer.business_name;
 			}
-
 		} catch (err) {
-			if (!(err instanceof Error) || err.name !== "AbortError") {
-				error = "Failed to load product details";
+			if (!(err instanceof Error) || err.name !== 'AbortError') {
+				error = 'Failed to load product details';
 			}
 		} finally {
 			loading = false;
@@ -87,9 +86,9 @@
 		toast.success(`${product.name} added to cart`, { duration: 2000 });
 
 		try {
-			const res = await apiFetch("/api/cart/", {
-				method: "POST",
-				headers: { "Content-Type": "application/json" },
+			const res = await apiFetch('/api/cart/', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({
 					product_id: product.id,
 					quantity: 1
@@ -98,13 +97,12 @@
 
 			if (!res.ok) throw new Error();
 			product.cartQty = (await res.json()).quantity;
-
 		} catch (err) {
 			product.cartQty = null;
-			
+
 			// Don't show error toast if it's an Unauthorized error (already shown by apiFetch)
 			if (err instanceof Error && err.message !== 'Unauthorized') {
-				toast.error("Failed to add to cart");
+				toast.error('Failed to add to cart');
 			}
 		}
 
@@ -119,9 +117,9 @@
 		product.isQtyLoading = true;
 
 		try {
-			const res = await apiFetch("/api/cart/", {
-				method: "POST",
-				headers: { "Content-Type": "application/json" },
+			const res = await apiFetch('/api/cart/', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({
 					product_id: product.id,
 					quantity: 1
@@ -130,13 +128,12 @@
 
 			if (!res.ok) throw new Error();
 			product.cartQty = (await res.json()).quantity;
-
 		} catch (err) {
 			product.cartQty = old;
-			
+
 			// Don't show error toast if it's an Unauthorized error (already shown by apiFetch)
 			if (err instanceof Error && err.message !== 'Unauthorized') {
-				toast.error("Failed to update quantity");
+				toast.error('Failed to update quantity');
 			}
 		}
 
@@ -151,9 +148,9 @@
 		product.isQtyLoading = true;
 
 		try {
-			const res = await apiFetch("/api/cart/", {
-				method: "POST",
-				headers: { "Content-Type": "application/json" },
+			const res = await apiFetch('/api/cart/', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({
 					product_id: product.id,
 					quantity: -1
@@ -164,13 +161,12 @@
 
 			const newQty = (await res.json()).quantity;
 			product.cartQty = newQty <= 0 ? null : newQty;
-
 		} catch (err) {
 			product.cartQty = old;
-			
+
 			// Don't show error toast if it's an Unauthorized error (already shown by apiFetch)
 			if (err instanceof Error && err.message !== 'Unauthorized') {
-				toast.error("Failed to update quantity");
+				toast.error('Failed to update quantity');
 			}
 		}
 
@@ -196,7 +192,7 @@
 			</div>
 		</div>
 
-	<!-- Error -->
+		<!-- Error -->
 	{:else if error}
 		<Card.Root class="max-w-md mx-auto">
 			<Card.Content class="p-6 text-center">
@@ -205,25 +201,22 @@
 			</Card.Content>
 		</Card.Root>
 
-	<!-- Product -->
+		<!-- Product -->
 	{:else if product}
 		<div class="grid gap-8 md:grid-cols-2">
-
 			<div class="aspect-square w-full overflow-hidden rounded-lg bg-muted">
 				<img alt={product.name} src={product.image} class="h-full w-full object-cover" />
 			</div>
 
 			<div class="space-y-6">
 				<h1 class="text-3xl font-bold">{product.name}</h1>
-				<p class="text-3xl font-bold">${product.price.toFixed(2)}</p>
+				<p class="text-3xl font-bold">₹{product.price.toFixed(2)}</p>
 				<p class="text-muted-foreground">{product.description}</p>
 
 				<!-- CART CONTROLS -->
 				<div class="flex gap-3">
 					{#if product.cartQty === null}
-						<Button size="lg" class="flex-1"
-							disabled={product.stock_qty === 0}
-							onclick={addToCart}>
+						<Button size="lg" class="flex-1" disabled={product.stock_qty === 0} onclick={addToCart}>
 							Add to Cart
 						</Button>
 					{:else}
