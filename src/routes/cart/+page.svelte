@@ -6,6 +6,7 @@
 	import { Skeleton } from '$lib/components/ui/skeleton';
 	import { toast } from 'svelte-sonner';
 	import { apiFetch } from '$lib/api';
+	import { createCheckoutSession } from '$lib/services/checkout';
 
 	interface CartItem {
 		id: number;
@@ -123,6 +124,26 @@
 		total = items.reduce((s, it) => s + it.price * it.quantity, 0);
 	});
 	let total = $state(0);
+
+	let checkoutLoading = $state(false);
+
+	async function handleCheckout() {
+		checkoutLoading = true;
+		try {
+			const successUrl = `${window.location.origin}/checkout/success`;
+			const cancelUrl = `${window.location.origin}/checkout/cancel`;
+			const url = await createCheckoutSession(successUrl, cancelUrl);
+			window.location.href = url;
+		} catch (err) {
+			console.error(err);
+			if (err instanceof Error) {
+				toast.error(err.message);
+			} else {
+				toast.error('Failed to initiate checkout');
+			}
+			checkoutLoading = false;
+		}
+	}
 </script>
 
 <main class="container mx-auto px-4 py-8">
@@ -217,7 +238,14 @@
 				</Card.Content>
 			</Card.Root>
 
-			<Button size="lg" class="w-full mt-4">Proceed to Checkout</Button>
+			<Button size="lg" class="w-full mt-4" disabled={checkoutLoading} onclick={handleCheckout}>
+				{#if checkoutLoading}
+					<Loader2 class="mr-2 h-4 w-4 animate-spin" />
+					Processing...
+				{:else}
+					Proceed to Checkout
+				{/if}
+			</Button>
 		</div>
 	{/if}
 </main>
