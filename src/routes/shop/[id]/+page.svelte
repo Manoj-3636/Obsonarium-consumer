@@ -46,6 +46,12 @@
 	let submittingReview = $state(false);
 	let checkingAuth = $state(false);
 
+	// Query state
+	let showQueryForm = $state(false);
+	let queryText = $state('');
+	let submittingQuery = $state(false);
+	let checkingQueryAuth = $state(false);
+
 	$effect(() => {
 		const id = $page.params.id;
 		if (id) {
@@ -143,6 +149,65 @@
 			toast.error('Failed to check authentication');
 		} finally {
 			checkingAuth = false;
+		}
+	}
+
+	async function handleAskQuestion() {
+		if (!product) return;
+
+		checkingQueryAuth = true;
+
+		try {
+			// Check if user is authenticated
+			const res = await fetch('/api/cart/number', {
+				credentials: 'include'
+			});
+
+			if (res.status === 401) {
+				toast.error('Please log in to ask a question');
+				const currentUrl = window.location.pathname + window.location.search;
+				sessionStorage.setItem('redirectAfterLogin', currentUrl);
+				window.location.href = '/signin';
+				return;
+			}
+
+			showQueryForm = true;
+		} catch (err) {
+			console.error('Failed to check authentication:', err);
+			toast.error('Failed to check authentication');
+		} finally {
+			checkingQueryAuth = false;
+		}
+	}
+
+	async function submitQuery() {
+		if (!product || !queryText.trim()) {
+			toast.error('Please enter your question');
+			return;
+		}
+
+		submittingQuery = true;
+
+		try {
+			const res = await apiFetch(`/api/products/${product.id}/queries`, {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({
+					query_text: queryText.trim()
+				})
+			});
+
+			if (!res.ok) throw new Error('Failed to submit query');
+
+			toast.success('Your question has been submitted!');
+			queryText = '';
+			showQueryForm = false;
+		} catch (err) {
+			if (err instanceof Error && err.message !== 'Unauthorized') {
+				toast.error('Failed to submit question');
+			}
+		} finally {
+			submittingQuery = false;
 		}
 	}
 
@@ -360,6 +425,48 @@
 					</Card.Content>
 				</Card.Root>
 			</div>
+		</div>
+
+		<!-- Product Queries Section -->
+		<div class="mt-12 space-y-6">
+			<div class="flex items-center justify-between">
+				<h2 class="text-2xl font-bold">Have a Question?</h2>
+				<Button onclick={handleAskQuestion} disabled={checkingQueryAuth}>
+					{#if checkingQueryAuth}
+						<Loader2 class="size-4 mr-2 animate-spin" />
+					{/if}
+					Ask a Question
+				</Button>
+			</div>
+
+			{#if showQueryForm}
+				<Card.Root>
+					<Card.Header>
+						<Card.Title>Ask a Question</Card.Title>
+					</Card.Header>
+					<Card.Content class="space-y-4">
+						<div>
+							<Label for="query-text">Your Question</Label>
+							<textarea
+								id="query-text"
+								bind:value={queryText}
+								placeholder="Ask the retailer about this product..."
+								class="w-full min-h-[100px] mt-2 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+							></textarea>
+						</div>
+
+						<div class="flex gap-2">
+							<Button onclick={submitQuery} disabled={submittingQuery}>
+								{#if submittingQuery}
+									<Loader2 class="size-4 mr-2 animate-spin" />
+								{/if}
+								Submit Question
+							</Button>
+							<Button variant="outline" onclick={() => (showQueryForm = false)}>Cancel</Button>
+						</div>
+					</Card.Content>
+				</Card.Root>
+			{/if}
 		</div>
 
 		<!-- Reviews Section -->
