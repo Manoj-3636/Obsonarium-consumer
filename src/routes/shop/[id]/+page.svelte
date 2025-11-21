@@ -32,6 +32,7 @@
 	interface Review {
 		id: number;
 		user_id: number;
+		reviewer_name: string;
 		rating: number;
 		comment: string;
 		created_at: string;
@@ -447,21 +448,24 @@
 					{#each reviews as review (review.id)}
 						<Card.Root>
 							<Card.Content class="p-4">
-								<div class="flex items-center gap-2 mb-2">
-									<div class="flex gap-1">
-										{#each Array(5) as _, i}
-											<Star
-												class="size-4 {review.rating > i
-													? 'fill-yellow-400 text-yellow-400'
-													: 'text-muted-foreground'}"
-											/>
-										{/each}
+								<div class="flex items-center justify-between mb-2">
+									<div class="flex items-center gap-3">
+										<div class="flex gap-1">
+											{#each Array(5) as _, i}
+												<Star
+													class="size-4 {review.rating > i
+														? 'fill-yellow-400 text-yellow-400'
+														: 'text-muted-foreground'}"
+												/>
+											{/each}
+										</div>
+										<span class="text-sm font-medium">{review.reviewer_name || 'Anonymous'}</span>
 									</div>
 									<span class="text-sm text-muted-foreground">
 										{new Date(review.created_at).toLocaleDateString()}
 									</span>
 								</div>
-								<p class="text-sm whitespace-pre-wrap">{review.comment}</p>
+								<p class="text-sm whitespace-pre-wrap mt-2">{review.comment}</p>
 							</Card.Content>
 						</Card.Root>
 					{/each}
