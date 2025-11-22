@@ -14,7 +14,7 @@ export async function apiFetch(
 	if (response.status === 401) {
 		// Show toast message
 		toast.error('Log in before adding to cart');
-		
+
 		// Store the current page URL so we can redirect back after login
 		const currentUrl = window.location.pathname + window.location.search;
 		sessionStorage.setItem('redirectAfterLogin', currentUrl);
