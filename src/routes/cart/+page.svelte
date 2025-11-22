@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { Loader2, Trash, ArrowLeft } from '@lucide/svelte';
+	import { Loader2, Trash, ArrowLeft, History } from '@lucide/svelte';
 	import * as Card from '$lib/components/ui/card';
 	import { Button } from '$lib/components/ui/button';
 	import { Skeleton } from '$lib/components/ui/skeleton';
@@ -176,10 +176,16 @@
 	<div class="flex items-center justify-between mb-6">
 		<h1 class="text-3xl font-bold tracking-tight">Your Cart</h1>
 
-		<Button variant="ghost" href="/shop" class="gap-2">
-			<ArrowLeft class="size-4" />
-			Back to Shop
-		</Button>
+		<div class="flex gap-2">
+			<Button variant="ghost" href="/orders" class="gap-2">
+				<History class="size-4" />
+				History
+			</Button>
+			<Button variant="ghost" href="/shop" class="gap-2">
+				<ArrowLeft class="size-4" />
+				Back to Shop
+			</Button>
+		</div>
 	</div>
 
 	<!-- LOADING -->

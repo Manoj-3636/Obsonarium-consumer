@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { Search, ShoppingCart, Loader2 } from '@lucide/svelte';
+	import { Search, ShoppingCart, Loader2, History } from '@lucide/svelte';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import * as Card from '$lib/components/ui/card/index.js';
 	import { Input } from '$lib/components/ui/input/index.js';
@@ -356,9 +356,12 @@
 				</Button>
 			</div>
 
-			<!-- Cart -->
-			<div class="flex justify-end">
-				<Button variant="ghost" size="icon" href={resolve('/cart')}>
+			<!-- Cart & History -->
+			<div class="flex justify-end gap-2">
+				<Button variant="ghost" size="icon" href={resolve('/orders')} title="Order History">
+					<History class="size-5" />
+				</Button>
+				<Button variant="ghost" size="icon" href={resolve('/cart')} title="Cart">
 					<ShoppingCart class="size-5" />
 				</Button>
 			</div>
