@@ -61,6 +61,15 @@
 		const item = items.find((i) => i.product_id === product_id);
 		if (!item) return;
 
+		// Check stock limit when increasing quantity
+		if (delta > 0) {
+			const newQuantity = item.quantity + delta;
+			if (newQuantity > item.stock_qty) {
+				toast.error(`Only ${item.stock_qty} available in stock. Cannot add more.`);
+				return;
+			}
+		}
+
 		const oldQty = item.quantity;
 		item.quantity += delta;
 		item.isQtyLoading = true;
@@ -123,6 +132,43 @@
 		total = items.reduce((s, it) => s + it.price * it.quantity, 0);
 	});
 	let total = $state(0);
+	let validatingStock = $state(false);
+
+	async function validateAndProceedToCheckout() {
+		validatingStock = true;
+		try {
+			const res = await apiFetch('/api/cart/validate');
+
+			const data = await res.json();
+
+			if (!data.valid) {
+				// Show errors for each product with insufficient stock
+				if (data.errors && Array.isArray(data.errors) && data.errors.length > 0) {
+					const firstError = data.errors[0];
+					if (data.errors.length === 1) {
+						toast.error(`${firstError.product_name}: Only ${firstError.available} available (requested: ${firstError.requested})`, {
+							duration: 5000
+						});
+					} else {
+						toast.error(`${firstError.product_name} and ${data.errors.length - 1} other item(s) have insufficient stock. Please update your cart.`, {
+							duration: 5000
+						});
+					}
+				} else {
+					toast.error('Some items have insufficient stock. Please update your cart.');
+				}
+				return;
+			}
+
+			// Stock is valid, proceed to checkout
+			window.location.href = '/checkout';
+		} catch (err) {
+			console.error(err);
+			toast.error('Failed to validate cart. Please try again.');
+		} finally {
+			validatingStock = false;
+		}
+	}
 </script>
 
 <main class="container mx-auto px-4 py-8">
@@ -171,32 +217,41 @@
 					<Card.Content class="p-4 flex items-center gap-4">
 						<img src={item.image} alt={item.name} class="h-24 w-24 object-cover rounded-md" />
 
-						<div class="flex-1">
-							<h2 class="font-semibold text-lg">{item.name}</h2>
-							<p class="text-muted-foreground">₹{item.price.toFixed(2)}</p>
-						</div>
+					<div class="flex-1">
+						<h2 class="font-semibold text-lg">{item.name}</h2>
+						<p class="text-muted-foreground">₹{item.price.toFixed(2)}</p>
+						{#if item.quantity > item.stock_qty}
+							<p class="text-sm text-destructive font-medium mt-1">
+								⚠️ Only {item.stock_qty} available (requested: {item.quantity})
+							</p>
+						{:else if item.stock_qty <= 5 && item.stock_qty > 0}
+							<p class="text-sm text-yellow-600 font-medium mt-1">
+								⚠️ Low stock: {item.stock_qty} remaining
+							</p>
+						{/if}
+					</div>
 
-						<div class="flex items-center gap-2">
-							<Button
-								size="sm"
-								variant="outline"
-								disabled={item.isQtyLoading}
-								onclick={() => modifyQty(item.product_id, -1)}>-</Button
-							>
+					<div class="flex items-center gap-2">
+						<Button
+							size="sm"
+							variant="outline"
+							disabled={item.isQtyLoading || item.quantity <= 1}
+							onclick={() => modifyQty(item.product_id, -1)}>-</Button
+						>
 
-							{#if item.isQtyLoading}
-								<Loader2 class="size-4 animate-spin" />
-							{:else}
-								<span class="font-medium">{item.quantity}</span>
-							{/if}
+						{#if item.isQtyLoading}
+							<Loader2 class="size-4 animate-spin" />
+						{:else}
+							<span class="font-medium">{item.quantity}</span>
+						{/if}
 
-							<Button
-								size="sm"
-								variant="outline"
-								disabled={item.isQtyLoading}
-								onclick={() => modifyQty(item.product_id, +1)}>+</Button
-							>
-						</div>
+						<Button
+							size="sm"
+							variant="outline"
+							disabled={item.isQtyLoading || item.quantity >= item.stock_qty}
+							onclick={() => modifyQty(item.product_id, +1)}>+</Button
+						>
+					</div>
 
 						<Button
 							size="icon"
@@ -217,7 +272,19 @@
 				</Card.Content>
 			</Card.Root>
 
-			<Button size="lg" class="w-full mt-4" href="/checkout">Proceed to Checkout</Button>
+			<Button 
+				size="lg" 
+				class="w-full mt-4" 
+				disabled={validatingStock}
+				onclick={validateAndProceedToCheckout}
+			>
+				{#if validatingStock}
+					<Loader2 class="size-4 animate-spin mr-2" />
+					Validating...
+				{:else}
+					Proceed to Checkout
+				{/if}
+			</Button>
 		</div>
 	{/if}
 </main>

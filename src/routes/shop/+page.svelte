@@ -210,6 +210,12 @@
 		const allP = allProducts.find((p) => p.id === productId);
 		if (!p || p.cartQty === null) return;
 
+		// Check stock limit before increasing
+		if (p.cartQty >= p.stock_qty) {
+			toast.error(`Only ${p.stock_qty} available in stock. Cannot add more.`);
+			return;
+		}
+
 		const oldQty = p.cartQty;
 
 		// Optimistic - update both arrays
@@ -499,7 +505,7 @@
 
 										<Button
 											size="sm"
-											disabled={product.isQtyLoading}
+											disabled={product.isQtyLoading || (product.cartQty !== null && product.cartQty >= product.stock_qty)}
 											onclick={() => increaseQty(product.id)}
 										>
 											+
