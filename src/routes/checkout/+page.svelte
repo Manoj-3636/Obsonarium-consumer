@@ -1,7 +1,15 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
-	import { ArrowLeft, Loader2, Plus, MapPin, ShoppingBag } from '@lucide/svelte';
+	import {
+		ArrowLeft,
+		Loader2,
+		Plus,
+		MapPin,
+		ShoppingBag,
+		CreditCard,
+		Banknote
+	} from '@lucide/svelte';
 	import * as Card from '$lib/components/ui/card';
 	import { Button } from '$lib/components/ui/button';
 	import { Input } from '$lib/components/ui/input';
@@ -36,6 +44,7 @@
 	let selectedAddressId = $state<number | null>(null);
 	let showAddressForm = $state(false);
 	let placingOrder = $state(false);
+	let paymentMethod = $state<'online' | 'offline'>('online');
 
 	// New address form fields
 	let newAddress = $state({
@@ -174,142 +183,229 @@
 		// Placeholder for future payment integration
 		setTimeout(() => {
 			placingOrder = false;
-			toast.info('Payment integration coming soon! Your order is ready to be processed.');
-		}, 1000);
+			if (paymentMethod === 'online') {
+				toast.info('Redirecting to secure payment gateway...');
+			} else {
+				toast.success('Order placed successfully! Please pay on delivery.');
+			}
+		}, 1500);
 	}
 </script>
 
 <main class="container mx-auto px-4 py-8 max-w-6xl">
-	<div class="flex gap-6">
-		<!-- LEFT: ADDRESS SELECTION -->
-		<div class="flex-1 bg-card border rounded-xl p-6 space-y-4 max-h-[80vh] overflow-y-auto">
-			<h2 class="text-xl font-semibold mb-4">Select Delivery Address</h2>
+	<div class="flex gap-6 items-start">
+		<!-- LEFT COLUMN -->
+		<div class="flex-1 space-y-6">
+			<!-- ADDRESS SELECTION -->
+			<div class="bg-card border rounded-xl p-6 space-y-4 max-h-[80vh] overflow-y-auto shadow-sm">
+				<h2 class="text-xl font-semibold mb-4 flex items-center gap-2">
+					<MapPin class="size-5 text-primary" /> Select Delivery Address
+				</h2>
 
-			<!-- Address List -->
-			{#if addresses.length > 0}
-				<div class="flex flex-col gap-4">
-					{#each addresses as address}
-						<label
-							class="flex items-start gap-4 p-6 border rounded-xl cursor-pointer hover:border-primary transition bg-card/50"
+				<!-- Address List -->
+				{#if addresses.length > 0}
+					<div class="flex flex-col gap-4">
+						{#each addresses as address}
+							<label
+								class="flex items-start gap-4 p-6 border rounded-xl cursor-pointer hover:border-primary transition bg-card/50 {selectedAddressId ===
+								address.id
+									? 'border-primary bg-primary/5 ring-1 ring-primary/10'
+									: ''}"
+							>
+								<input
+									type="radio"
+									name="address"
+									value={address.id}
+									bind:group={selectedAddressId}
+									class="mt-1 size-4 accent-primary"
+								/>
+
+								<div class="space-y-1">
+									<p class="font-semibold text-lg">{address.label || 'Address'}</p>
+									<p class="text-muted-foreground text-base">
+										{address.street_address}, {address.city}
+										{address.state ? `, ${address.state}` : ''} - {address.postal_code}
+									</p>
+									<p class="text-sm uppercase text-muted-foreground font-medium">
+										{address.country}
+									</p>
+								</div>
+							</label>
+						{/each}
+					</div>
+				{:else}
+					<p class="text-muted-foreground">No addresses saved yet.</p>
+				{/if}
+
+				<!-- Add Address Button -->
+				{#if !showAddressForm}
+					<Button class="w-full mt-6 h-12 text-base" onclick={() => (showAddressForm = true)}
+						>Add New Address</Button
+					>
+				{/if}
+
+				<!-- Address Form -->
+				{#if showAddressForm}
+					<div
+						class="border rounded-xl p-6 space-y-4 mt-6 bg-muted/30 animate-in fade-in slide-in-from-top-2"
+					>
+						<div class="flex items-center justify-between mb-2">
+							<h3 class="font-semibold text-lg">New Address</h3>
+						</div>
+
+						<div class="space-y-4">
+							<div class="grid gap-2">
+								<Label>Label (Optional)</Label>
+								<Input placeholder="Home, Work, etc." bind:value={newAddress.label} class="h-11" />
+							</div>
+
+							<div class="grid gap-2">
+								<Label>Street Address</Label>
+								<Input
+									placeholder="House No., Street Name"
+									bind:value={newAddress.street_address}
+									class="h-11"
+								/>
+							</div>
+
+							<div class="grid grid-cols-2 gap-4">
+								<div class="grid gap-2">
+									<Label>City</Label>
+									<Input placeholder="City" bind:value={newAddress.city} class="h-11" />
+								</div>
+								<div class="grid gap-2">
+									<Label>State</Label>
+									<Input placeholder="State" bind:value={newAddress.state} class="h-11" />
+								</div>
+							</div>
+
+							<div class="grid grid-cols-2 gap-4">
+								<div class="grid gap-2">
+									<Label>Postal Code</Label>
+									<Input placeholder="PIN Code" bind:value={newAddress.postal_code} class="h-11" />
+								</div>
+								<div class="grid gap-2">
+									<Label>Country</Label>
+									<Input placeholder="Country" bind:value={newAddress.country} class="h-11" />
+								</div>
+							</div>
+						</div>
+
+						<div class="flex gap-3 pt-2">
+							<Button class="flex-1 h-11" onclick={addNewAddress}>Save Address</Button>
+							<Button
+								variant="outline"
+								class="flex-1 h-11"
+								onclick={() => (showAddressForm = false)}>Cancel</Button
+							>
+						</div>
+					</div>
+				{/if}
+			</div>
+
+			<!-- PAYMENT METHOD -->
+			<div class="bg-card border rounded-xl p-6 space-y-4 shadow-sm">
+				<h2 class="text-xl font-semibold mb-4 flex items-center gap-2">
+					<CreditCard class="size-5 text-primary" /> Payment Method
+				</h2>
+				<div class="grid gap-4 sm:grid-cols-2">
+					<label
+						class="flex items-center gap-4 p-4 border rounded-xl cursor-pointer hover:border-primary transition bg-card/50 {paymentMethod ===
+						'online'
+							? 'border-primary bg-primary/5 ring-1 ring-primary/10'
+							: ''}"
+					>
+						<input
+							type="radio"
+							name="payment"
+							value="online"
+							bind:group={paymentMethod}
+							class="hidden"
+						/>
+						<div
+							class="size-10 rounded-full bg-primary/10 flex items-center justify-center text-primary"
 						>
-							<input
-								type="radio"
-								name="address"
-								value={address.id}
-								bind:group={selectedAddressId}
-								class="mt-1 size-4"
-							/>
-
-							<div class="space-y-1">
-								<p class="font-semibold text-lg">{address.label || 'Address'}</p>
-								<p class="text-muted-foreground text-base">
-									{address.street_address}, {address.city}
-									{address.state ? `, ${address.state}` : ''} - {address.postal_code}
-								</p>
-								<p class="text-sm uppercase text-muted-foreground font-medium">{address.country}</p>
-							</div>
-						</label>
-					{/each}
-				</div>
-			{:else}
-				<p class="text-muted-foreground">No addresses saved yet.</p>
-			{/if}
-
-			<!-- Add Address Button -->
-			{#if !showAddressForm}
-				<Button class="w-full mt-6 h-12 text-base" onclick={() => (showAddressForm = true)}
-					>Add New Address</Button
-				>
-			{/if}
-
-			<!-- Address Form -->
-			{#if showAddressForm}
-				<div class="border rounded-xl p-6 space-y-4 mt-6 bg-muted/30">
-					<div class="flex items-center justify-between mb-2">
-						<h3 class="font-semibold text-lg">New Address</h3>
-					</div>
-
-					<div class="space-y-4">
-						<div class="grid gap-2">
-							<Label>Label (Optional)</Label>
-							<Input placeholder="Home, Work, etc." bind:value={newAddress.label} class="h-11" />
+							<CreditCard class="size-5" />
 						</div>
-
-						<div class="grid gap-2">
-							<Label>Street Address</Label>
-							<Input
-								placeholder="House No., Street Name"
-								bind:value={newAddress.street_address}
-								class="h-11"
-							/>
+						<div>
+							<div class="font-semibold">Online Payment</div>
+							<div class="text-xs text-muted-foreground">UPI, Cards, Netbanking</div>
 						</div>
+					</label>
 
-						<div class="grid grid-cols-2 gap-4">
-							<div class="grid gap-2">
-								<Label>City</Label>
-								<Input placeholder="City" bind:value={newAddress.city} class="h-11" />
-							</div>
-							<div class="grid gap-2">
-								<Label>State</Label>
-								<Input placeholder="State" bind:value={newAddress.state} class="h-11" />
-							</div>
-						</div>
-
-						<div class="grid grid-cols-2 gap-4">
-							<div class="grid gap-2">
-								<Label>Postal Code</Label>
-								<Input placeholder="PIN Code" bind:value={newAddress.postal_code} class="h-11" />
-							</div>
-							<div class="grid gap-2">
-								<Label>Country</Label>
-								<Input placeholder="Country" bind:value={newAddress.country} class="h-11" />
-							</div>
-						</div>
-					</div>
-
-					<div class="flex gap-3 pt-2">
-						<Button class="flex-1 h-11" onclick={addNewAddress}>Save Address</Button>
-						<Button variant="outline" class="flex-1 h-11" onclick={() => (showAddressForm = false)}
-							>Cancel</Button
+					<label
+						class="flex items-center gap-4 p-4 border rounded-xl cursor-pointer hover:border-primary transition bg-card/50 {paymentMethod ===
+						'offline'
+							? 'border-primary bg-primary/5 ring-1 ring-primary/10'
+							: ''}"
+					>
+						<input
+							type="radio"
+							name="payment"
+							value="offline"
+							bind:group={paymentMethod}
+							class="hidden"
+						/>
+						<div
+							class="size-10 rounded-full bg-primary/10 flex items-center justify-center text-primary"
 						>
-					</div>
+							<Banknote class="size-5" />
+						</div>
+						<div>
+							<div class="font-semibold">Cash on Delivery</div>
+							<div class="text-xs text-muted-foreground">Pay when you receive</div>
+						</div>
+					</label>
 				</div>
-			{/if}
+			</div>
 		</div>
 
 		<!-- RIGHT: ORDER SUMMARY -->
-		<div class="w-[32%] sticky top-10">
-			<div class="border bg-card rounded-xl p-6 space-y-4 shadow">
-				<h2 class="text-xl font-semibold">Order Summary</h2>
+		<div class="w-[35%] sticky top-10">
+			<div class="border bg-card rounded-xl p-6 space-y-6 shadow-lg">
+				<h2 class="text-xl font-semibold flex items-center gap-2">
+					<ShoppingBag class="size-5 text-primary" /> Order Summary
+				</h2>
 
-				<div class="flex justify-between text-sm">
-					<span class="text-muted-foreground">Subtotal</span>
-					<span>₹{total.toFixed(2)}</span>
+				<div class="space-y-3">
+					<div class="flex justify-between text-sm">
+						<span class="text-muted-foreground">Subtotal</span>
+						<span>₹{total.toFixed(2)}</span>
+					</div>
+
+					<div class="flex justify-between text-sm">
+						<span class="text-muted-foreground">Shipping</span>
+						<span class="text-green-600 font-medium">Free</span>
+					</div>
+
+					<div class="flex justify-between text-sm">
+						<span class="text-muted-foreground">Tax</span>
+						<span>₹0.00</span>
+					</div>
 				</div>
 
-				<div class="flex justify-between text-sm">
-					<span class="text-muted-foreground">Tax</span>
-					<span>₹0.00</span>
-				</div>
-
-				<hr />
-
-				<div class="flex justify-between items-center">
-					<p class="font-bold text-lg">Total</p>
-					<p class="text-2xl font-bold">₹{total.toFixed(2)}</p>
+				<div class="border-t pt-4">
+					<div class="flex justify-between items-end">
+						<span class="font-semibold text-lg">Total</span>
+						<span class="text-3xl font-bold tracking-tight">₹{total.toFixed(2)}</span>
+					</div>
 				</div>
 
 				<Button
-					class="w-full h-12 text-base mt-4"
+					class="w-full h-14 text-lg font-semibold shadow-md transition-all hover:scale-[1.02]"
 					disabled={!selectedAddressId || placingOrder}
 					onclick={handlePlaceOrder}
 				>
 					{#if placingOrder}
-						<Loader2 class="size-4 animate-spin mr-2" /> Processing…
+						<Loader2 class="size-5 animate-spin mr-2" /> Processing…
 					{:else}
 						Place Order
 					{/if}
 				</Button>
+
+				<div class="text-xs text-center text-muted-foreground">
+					<p>Secure checkout powered by Obsonarium</p>
+				</div>
 			</div>
 		</div>
 	</div>
