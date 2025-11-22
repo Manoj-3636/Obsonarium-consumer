@@ -180,11 +180,6 @@
 			return;
 		}
 
-		if (paymentMethod === 'online') {
-			toast.info('Online payment is yet to be implemented');
-			return;
-		}
-
 		placingOrder = true;
 
 		try {
@@ -206,6 +201,15 @@
 				throw new Error(errData.message || 'Failed to place order');
 			}
 
+			const data = await res.json();
+
+			// If online payment, redirect to Stripe checkout
+			if (paymentMethod === 'online' && data.session_url) {
+				window.location.href = data.session_url;
+				return;
+			}
+
+			// For offline payment, show success message
 			orderPlaced = true;
 			toast.success('Order placed successfully!');
 		} catch (err) {
