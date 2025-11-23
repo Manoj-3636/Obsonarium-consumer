@@ -15,6 +15,27 @@
 			toast.success('Payment successful! Your order has been placed.');
 		}
 	});
+
+	// Calculate delivery date (2 days from now)
+	const deliveryDate = $derived(new Date(Date.now() + 2 * 24 * 60 * 60 * 1000));
+	
+	// Generate Google Calendar URL
+	const googleCalendarUrl = $derived(() => {
+		const startDate = new Date(deliveryDate);
+		startDate.setHours(10, 0, 0, 0);
+		const endDate = new Date(startDate);
+		endDate.setHours(11, 0, 0, 0);
+		
+		const formatDate = (date: Date) => {
+			return date.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
+		};
+		
+		const dates = `${formatDate(startDate)}/${formatDate(endDate)}`;
+		const title = encodeURIComponent('Order Delivery');
+		const details = encodeURIComponent(`Your order will be delivered on ${deliveryDate.toLocaleDateString('en-IN', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}`);
+		
+		return `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${title}&dates=${dates}&details=${details}`;
+	});
 </script>
 
 <main class="container mx-auto px-4 py-8 max-w-6xl">
@@ -34,7 +55,19 @@
 				<span class="font-medium">Order ID: #{orderId}</span>
 			{/if}
 		</p>
-		<div class="pt-6">
+		<div class="pt-6 flex flex-col items-center gap-4">
+			<Button
+				href={googleCalendarUrl()}
+				target="_blank"
+				rel="noopener noreferrer"
+				variant="outline"
+				class="h-12 px-8 text-lg inline-flex items-center gap-2"
+			>
+				<svg class="size-5" viewBox="0 0 24 24" fill="currentColor">
+					<path d="M19 4h-1V2h-2v2H8V2H6v2H5c-1.11 0-1.99.9-1.99 2L3 20c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 16H5V10h14v10zm0-12H5V6h14v2z"/>
+				</svg>
+				Add Delivery to Google Calendar
+			</Button>
 			<Button href="/shop" class="h-12 px-8 text-lg">Continue Shopping</Button>
 		</div>
 	</div>
