@@ -55,6 +55,7 @@
 	let showNearMe = $state<boolean>(false);
 	let distanceFilter = $state<number | null>(null); // 1, 3, 5, 10 km
 	let locationLoading = $state<boolean>(false);
+	let shopsLoading = $state<boolean>(false);
 
 	/** ---- LOAD PRODUCTS ---- **/
 	async function loadProducts(query: string) {
@@ -114,8 +115,10 @@
 				locationPermission = 'granted';
 				locationLoading = false;
 
-				// Load nearby shops
-				await loadNearbyShops(userLat, userLon);
+				// Load nearby shops if Near Me is active or just to have data ready
+				if (showNearMe) {
+					await loadNearbyShops(userLat, userLon);
+				}
 			},
 			(error) => {
 				console.error('Geolocation error:', error);
@@ -130,25 +133,34 @@
 	}
 
 	async function loadNearbyShops(lat: number, lon: number) {
+		shopsLoading = true;
 		try {
 			const radius = distanceFilter || 10; // Default 10km
-			const response = await fetch(
-				`/api/shops/nearby?lat=${lat}&lon=${lon}&radius=${radius}`
-			);
+			const response = await fetch(`/api/shops/nearby?lat=${lat}&lon=${lon}&radius=${radius}`);
 			if (!response.ok) throw new Error('Failed to fetch nearby shops');
 
 			const data = await response.json();
 			nearbyShops = data.shops || [];
+			applyFiltersAndSort();
 		} catch (err) {
 			console.error('Failed to load nearby shops:', err);
 			nearbyShops = [];
+			applyFiltersAndSort();
+		} finally {
+			shopsLoading = false;
 		}
 	}
 
 	function toggleNearMe() {
 		showNearMe = !showNearMe;
-		if (showNearMe && userLat && userLon) {
-			loadNearbyShops(userLat, userLon);
+		if (showNearMe) {
+			if (userLat && userLon) {
+				loadNearbyShops(userLat, userLon);
+			} else {
+				requestLocation();
+			}
+		} else {
+			applyFiltersAndSort();
 		}
 	}
 
@@ -184,8 +196,23 @@
 			filtered.sort((a, b) => a.price - b.price);
 		} else if (sortBy === 'price_desc') {
 			filtered.sort((a, b) => b.price - a.price);
+		} else if (sortBy === 'distance_asc' && showNearMe && nearbyShops.length > 0) {
+			// Sort by distance
+			filtered.sort((a, b) => {
+				const shopA = nearbyShops.find((s) => s.retailer.id === a.retailer_id);
+				const shopB = nearbyShops.find((s) => s.retailer.id === b.retailer_id);
+				const distA = shopA ? shopA.distance : Infinity;
+				const distB = shopB ? shopB.distance : Infinity;
+				return distA - distB;
+			});
 		}
 		// "default" keeps original order (already sorted by backend)
+
+		// Apply Near Me filter
+		if (showNearMe && userLat && userLon) {
+			const nearbyRetailerIds = new Set(nearbyShops.map((s) => s.retailer.id));
+			filtered = filtered.filter((p) => p.retailer_id && nearbyRetailerIds.has(p.retailer_id));
+		}
 
 		// Preserve cart quantities from products array when filtering
 		// Match by product ID to keep cart state
@@ -467,13 +494,20 @@
 		<!-- Filters and Sort -->
 		<div class="mb-6 flex flex-wrap items-center gap-4 rounded-lg border border-border bg-card p-4">
 			<!-- Near Me Button -->
+			<!-- Near Me Button -->
 			<Button
 				variant={showNearMe ? 'default' : 'outline'}
 				size="sm"
 				onclick={toggleNearMe}
-				disabled={locationLoading || !userLat || !userLon}
+				disabled={locationLoading ||
+					shopsLoading ||
+					(!userLat && !userLon && locationPermission === 'denied')}
 			>
-				<Navigation class="size-4 mr-2" />
+				{#if locationLoading || shopsLoading}
+					<Loader2 class="size-4 mr-2 animate-spin" />
+				{:else}
+					<Navigation class="size-4 mr-2" />
+				{/if}
 				Near Me
 			</Button>
 
@@ -484,12 +518,17 @@
 					<select
 						class="h-9 rounded-md border border-input bg-background px-3 py-1 text-sm"
 						value={distanceFilter?.toString() ?? '10'}
-						onchange={(e) => handleDistanceFilter(e.currentTarget.value ? parseFloat(e.currentTarget.value) : null)}
+						onchange={(e) =>
+							handleDistanceFilter(
+								e.currentTarget.value ? parseFloat(e.currentTarget.value) : null
+							)}
 					>
 						<option value="1">1 km</option>
 						<option value="3">3 km</option>
 						<option value="5">5 km</option>
 						<option value="10">10 km</option>
+						<option value="25">25 km</option>
+						<option value="50">50 km</option>
 					</select>
 				</div>
 			{/if}
@@ -596,7 +635,7 @@
 								{/if}
 
 								{#if showNearMe && nearbyShops.length > 0 && product.retailer_id}
-									{@const shop = nearbyShops.find(s => s.retailer.id === product.retailer_id)}
+									{@const shop = nearbyShops.find((s) => s.retailer.id === product.retailer_id)}
 									{#if shop}
 										<div class="flex items-center gap-1 text-xs text-muted-foreground mt-1">
 											<MapPin class="size-3" />
@@ -641,7 +680,8 @@
 
 										<Button
 											size="sm"
-											disabled={product.isQtyLoading || (product.cartQty !== null && product.cartQty >= product.stock_qty)}
+											disabled={product.isQtyLoading ||
+												(product.cartQty !== null && product.cartQty >= product.stock_qty)}
 											onclick={() => increaseQty(product.id)}
 										>
 											+

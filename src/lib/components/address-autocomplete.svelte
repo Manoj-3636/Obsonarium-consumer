@@ -28,6 +28,7 @@
 	let results = $state<GeocodeResult[]>([]);
 	let loading = $state<boolean>(false);
 	let showResults = $state<boolean>(false);
+	let selectedIndex = $state<number>(-1);
 	let debounceTimer: ReturnType<typeof setTimeout> | null = null;
 
 	// Debounce search (300ms as per requirements)
@@ -95,9 +96,10 @@
 		searchAddresses(query);
 	}
 
-	function selectResult(result: GeocodeResult) {
+	function selectResult(result: GeocodeResult, index: number) {
 		value = result.display_name;
 		query = result.display_name;
+		selectedIndex = index;
 		showResults = false;
 		results = [];
 		onSelect(result);
@@ -132,12 +134,13 @@
 			class="absolute z-50 mt-1 w-full rounded-md border bg-popover p-1 text-popover-foreground shadow-md"
 			role="listbox"
 		>
-			{#each results as result (result.latitude + result.longitude)}
+			{#each results as result, index (result.latitude + result.longitude)}
 				<button
 					type="button"
 					class="w-full rounded-sm px-2 py-1.5 text-left text-sm hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground"
-					onclick={() => selectResult(result)}
+					onclick={() => selectResult(result, index)}
 					role="option"
+					aria-selected={selectedIndex === index}
 				>
 					<div class="font-medium">{result.display_name}</div>
 				</button>

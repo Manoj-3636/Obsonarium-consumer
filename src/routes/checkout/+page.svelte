@@ -64,6 +64,8 @@
 
 	let showMapPicker = $state(false);
 	let addressSearchValue = $state('');
+	let mapPickerRef: MapPicker | null = $state(null);
+	let gettingCurrentLocation = $state(false);
 
 	let total = $derived(cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0));
 
@@ -153,6 +155,93 @@
 	function handleLocationChange(lat: number, lon: number) {
 		newAddress.latitude = lat;
 		newAddress.longitude = lon;
+	}
+
+	async function useCurrentLocation() {
+		if (!navigator.geolocation) {
+			toast.error('Geolocation is not supported by your browser');
+			return;
+		}
+
+		gettingCurrentLocation = true;
+		try {
+			// Get current location
+			const position = await new Promise<GeolocationPosition>((resolve, reject) => {
+				navigator.geolocation.getCurrentPosition(resolve, reject, {
+					enableHighAccuracy: true,
+					timeout: 10000,
+					maximumAge: 0
+				});
+			});
+
+			const lat = position.coords.latitude;
+			const lon = position.coords.longitude;
+
+			// Update coordinates
+			newAddress.latitude = lat;
+			newAddress.longitude = lon;
+
+			// Center map on current location
+			if (mapPickerRef) {
+				await mapPickerRef.centerOnCurrentLocation();
+			} else if (showMapPicker) {
+				// If map is shown but ref not set, wait a bit
+				setTimeout(async () => {
+					if (mapPickerRef) {
+						await mapPickerRef.centerOnCurrentLocation();
+					}
+				}, 500);
+			}
+
+			// Reverse geocode to get address
+			try {
+				const response = await fetch(
+					`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json`,
+					{
+						headers: {
+							'User-Agent': 'Obsonarium/1.0 (https://obsonarium.com)'
+						}
+					}
+				);
+
+				if (response.ok) {
+					const data = await response.json();
+					const addr = data.address || {};
+
+					// Populate address fields
+					newAddress.street_address = `${addr.house_number || ''} ${addr.road || ''}`.trim() || addr.address29 || '';
+					newAddress.city = addr.city || addr.town || addr.village || addr.suburb || '';
+					newAddress.state = addr.state || addr.region || '';
+					newAddress.postal_code = addr.postcode || '';
+					newAddress.country = addr.country || 'India';
+					addressSearchValue = data.display_name || '';
+
+					toast.success('Location detected and address populated');
+				} else {
+					toast.error('Failed to get address for your location');
+				}
+			} catch (error) {
+				console.error('Reverse geocoding failed:', error);
+				toast.error('Failed to get address for your location');
+			}
+		} catch (error) {
+			console.error('Error getting location:', error);
+			if (error instanceof GeolocationPositionError) {
+				if (error.code === error.PERMISSION_DENIED) {
+					toast.error('Location access denied. Please enable location permissions.');
+				} else if (error.code === error.POSITION_UNAVAILABLE) {
+					toast.error('Location unavailable. Please try again.');
+				} else if (error.code === error.TIMEOUT) {
+					toast.error('Location request timed out. Please try again.');
+				} else {
+					toast.error('Failed to get your location. Please try again.');
+				}
+			} else {
+				toast.error('Failed to get your location. Please try again.');
+			}
+		} finally {
+			gettingCurrentLocation = false;
+		}
 	}
 
 	async function addNewAddress() {
@@ -394,12 +483,31 @@
 									/>
 								</div>
 
-								<div class="grid gap-2">
-									<Label>Search Address</Label>
-									<AddressAutocomplete
-										value={addressSearchValue}
-										onSelect={handleAddressSelect}
-									/>
+								<div class="flex gap-2">
+									<div class="grid gap-2 flex-1">
+										<Label>Search Address</Label>
+										<AddressAutocomplete
+											value={addressSearchValue}
+											onSelect={handleAddressSelect}
+										/>
+									</div>
+									<div class="flex items-end">
+										<Button
+											type="button"
+											variant="outline"
+											onclick={useCurrentLocation}
+											disabled={gettingCurrentLocation}
+											class="h-11 whitespace-nowrap"
+										>
+											{#if gettingCurrentLocation}
+												<Loader2 class="mr-2 h-4 w-4 animate-spin" />
+												Getting Location...
+											{:else}
+												<MapPin class="mr-2 h-4 w-4" />
+												Use Current Location
+											{/if}
+										</Button>
+									</div>
 								</div>
 
 								<div class="flex gap-2">
@@ -417,9 +525,11 @@
 									<div class="grid gap-2">
 										<Label>Select Location on Map</Label>
 										<MapPicker
+											bind:this={mapPickerRef}
 											bind:latitude={newAddress.latitude}
 											bind:longitude={newAddress.longitude}
 											onLocationChange={handleLocationChange}
+											autoCenterOnLocation={!newAddress.latitude && !newAddress.longitude}
 										/>
 									</div>
 								{/if}
