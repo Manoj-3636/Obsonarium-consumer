@@ -8,6 +8,7 @@
 	import { toast } from 'svelte-sonner';
 	import { resolve } from '$app/paths';
 	import { apiFetch } from '$lib/api';
+	import { MapPin, Navigation } from '@lucide/svelte';
 
 	/** ---- PRODUCT TYPE ---- **/
 	interface Product {
@@ -16,9 +17,22 @@
 		price: number;
 		image: string;
 		stock_qty: number;
-
+		retailer_id?: number;
 		cartQty: number | null; // null → not added yet
 		isQtyLoading: boolean; // spinner while waiting
+	}
+
+	interface ShopWithDistance {
+		retailer: {
+			id: number;
+			name: string;
+			business_name: string;
+			address: string;
+			latitude?: number | null;
+			longitude?: number | null;
+		};
+		distance: number; // in km
+		eta: number; // in minutes
 	}
 
 	let searchQuery = $state<string>('');
@@ -32,6 +46,15 @@
 	let minPrice = $state<number | null>(null);
 	let maxPrice = $state<number | null>(null);
 	let sortBy = $state<string>('default'); // "default", "price_asc", "price_desc"
+
+	// Location state
+	let userLat = $state<number | null>(null);
+	let userLon = $state<number | null>(null);
+	let locationPermission = $state<'prompt' | 'granted' | 'denied'>('prompt');
+	let nearbyShops = $state<ShopWithDistance[]>([]);
+	let showNearMe = $state<boolean>(false);
+	let distanceFilter = $state<number | null>(null); // 1, 3, 5, 10 km
+	let locationLoading = $state<boolean>(false);
 
 	/** ---- LOAD PRODUCTS ---- **/
 	async function loadProducts(query: string) {
@@ -54,6 +77,7 @@
 					price: product.price,
 					image: product.image_url,
 					stock_qty: product.stock_qty,
+					retailer_id: product.retailer_id,
 
 					cartQty: null,
 					isQtyLoading: false
@@ -70,7 +94,70 @@
 		}
 	}
 
-	onMount(() => loadProducts(''));
+	onMount(() => {
+		loadProducts('');
+		requestLocation();
+	});
+
+	/** ---- LOCATION FUNCTIONS ---- **/
+	async function requestLocation() {
+		if (!navigator.geolocation) {
+			toast.error('Geolocation is not supported by your browser');
+			return;
+		}
+
+		locationLoading = true;
+		navigator.geolocation.getCurrentPosition(
+			async (position) => {
+				userLat = position.coords.latitude;
+				userLon = position.coords.longitude;
+				locationPermission = 'granted';
+				locationLoading = false;
+
+				// Load nearby shops
+				await loadNearbyShops(userLat, userLon);
+			},
+			(error) => {
+				console.error('Geolocation error:', error);
+				locationPermission = 'denied';
+				locationLoading = false;
+				if (error.code === error.PERMISSION_DENIED) {
+					toast.error('Location permission denied');
+				}
+			},
+			{ enableHighAccuracy: true, timeout: 10000 }
+		);
+	}
+
+	async function loadNearbyShops(lat: number, lon: number) {
+		try {
+			const radius = distanceFilter || 10; // Default 10km
+			const response = await fetch(
+				`/api/shops/nearby?lat=${lat}&lon=${lon}&radius=${radius}`
+			);
+			if (!response.ok) throw new Error('Failed to fetch nearby shops');
+
+			const data = await response.json();
+			nearbyShops = data.shops || [];
+		} catch (err) {
+			console.error('Failed to load nearby shops:', err);
+			nearbyShops = [];
+		}
+	}
+
+	function toggleNearMe() {
+		showNearMe = !showNearMe;
+		if (showNearMe && userLat && userLon) {
+			loadNearbyShops(userLat, userLon);
+		}
+	}
+
+	function handleDistanceFilter(km: number | null) {
+		distanceFilter = km;
+		if (userLat && userLon) {
+			loadNearbyShops(userLat, userLon);
+		}
+	}
 
 	/** ---- SEARCH ---- **/
 	function performSearch() {
@@ -136,6 +223,8 @@
 		minPrice = null;
 		maxPrice = null;
 		sortBy = 'default';
+		showNearMe = false;
+		distanceFilter = null;
 		applyFiltersAndSort();
 	}
 
@@ -377,6 +466,34 @@
 
 		<!-- Filters and Sort -->
 		<div class="mb-6 flex flex-wrap items-center gap-4 rounded-lg border border-border bg-card p-4">
+			<!-- Near Me Button -->
+			<Button
+				variant={showNearMe ? 'default' : 'outline'}
+				size="sm"
+				onclick={toggleNearMe}
+				disabled={locationLoading || !userLat || !userLon}
+			>
+				<Navigation class="size-4 mr-2" />
+				Near Me
+			</Button>
+
+			{#if showNearMe && userLat && userLon}
+				<!-- Distance Filter -->
+				<div class="flex items-center gap-2">
+					<span class="text-sm font-medium text-muted-foreground">Within:</span>
+					<select
+						class="h-9 rounded-md border border-input bg-background px-3 py-1 text-sm"
+						value={distanceFilter?.toString() ?? '10'}
+						onchange={(e) => handleDistanceFilter(e.currentTarget.value ? parseFloat(e.currentTarget.value) : null)}
+					>
+						<option value="1">1 km</option>
+						<option value="3">3 km</option>
+						<option value="5">5 km</option>
+						<option value="10">10 km</option>
+					</select>
+				</div>
+			{/if}
+
 			<!-- Price Filter -->
 			<div class="flex items-center gap-2">
 				<span class="text-sm font-medium text-muted-foreground">Price:</span>
@@ -408,11 +525,14 @@
 					<option value="default">Default</option>
 					<option value="price_asc">Price: Low to High</option>
 					<option value="price_desc">Price: High to Low</option>
+					{#if showNearMe && userLat && userLon}
+						<option value="distance_asc">Distance: Nearest First</option>
+					{/if}
 				</select>
 			</div>
 
 			<!-- Clear Filters -->
-			{#if minPrice !== null || maxPrice !== null || sortBy !== 'default'}
+			{#if minPrice !== null || maxPrice !== null || sortBy !== 'default' || showNearMe}
 				<Button variant="outline" size="sm" onclick={clearFilters}>Clear Filters</Button>
 			{/if}
 
@@ -473,6 +593,19 @@
 									</Card.Description>
 								{:else}
 									<Card.Description class="text-sm text-destructive">Out of stock</Card.Description>
+								{/if}
+
+								{#if showNearMe && nearbyShops.length > 0 && product.retailer_id}
+									{@const shop = nearbyShops.find(s => s.retailer.id === product.retailer_id)}
+									{#if shop}
+										<div class="flex items-center gap-1 text-xs text-muted-foreground mt-1">
+											<MapPin class="size-3" />
+											<span>{shop.distance.toFixed(1)} km away</span>
+											{#if shop.eta > 0}
+												<span>• ~{Math.round(shop.eta)} min</span>
+											{/if}
+										</div>
+									{/if}
 								{/if}
 							</Card.Header>
 

@@ -17,6 +17,8 @@
 	import { Skeleton } from '$lib/components/ui/skeleton';
 	import { toast } from 'svelte-sonner';
 	import { apiFetch } from '$lib/api';
+	import AddressAutocomplete from '$lib/components/address-autocomplete.svelte';
+	import MapPicker from '$lib/components/map-picker.svelte';
 
 	interface CartItem {
 		id: number;
@@ -35,6 +37,8 @@
 		state: string;
 		postal_code: string;
 		country: string;
+		latitude?: number | null;
+		longitude?: number | null;
 	}
 
 	let loadingCart = $state(true);
@@ -53,8 +57,13 @@
 		city: '',
 		state: '',
 		postal_code: '',
-		country: 'India'
+		country: 'India',
+		latitude: null as number | null,
+		longitude: null as number | null
 	});
+
+	let showMapPicker = $state(false);
+	let addressSearchValue = $state('');
 
 	let total = $derived(cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0));
 
@@ -119,6 +128,33 @@
 		}
 	}
 
+	function handleAddressSelect(result: {
+		latitude: number;
+		longitude: number;
+		display_name: string;
+		address: {
+			street_address: string;
+			city: string;
+			state: string;
+			postcode: string;
+			country: string;
+		};
+	}) {
+		newAddress.street_address = result.address.street_address;
+		newAddress.city = result.address.city;
+		newAddress.state = result.address.state;
+		newAddress.postal_code = result.address.postcode;
+		newAddress.country = result.address.country;
+		newAddress.latitude = result.latitude;
+		newAddress.longitude = result.longitude;
+		addressSearchValue = result.display_name;
+	}
+
+	function handleLocationChange(lat: number, lon: number) {
+		newAddress.latitude = lat;
+		newAddress.longitude = lon;
+	}
+
 	async function addNewAddress() {
 		// Validate required fields
 		if (!newAddress.street_address.trim()) {
@@ -160,9 +196,13 @@
 				city: '',
 				state: '',
 				postal_code: '',
-				country: 'India'
+				country: 'India',
+				latitude: null,
+				longitude: null
 			};
+			addressSearchValue = '';
 			showAddressForm = false;
+			showMapPicker = false;
 
 			toast.success('Address added successfully');
 		} catch (err) {
@@ -353,6 +393,36 @@
 										class="h-11"
 									/>
 								</div>
+
+								<div class="grid gap-2">
+									<Label>Search Address</Label>
+									<AddressAutocomplete
+										value={addressSearchValue}
+										onSelect={handleAddressSelect}
+									/>
+								</div>
+
+								<div class="flex gap-2">
+									<Button
+										type="button"
+										variant={showMapPicker ? 'default' : 'outline'}
+										class="flex-1"
+										onclick={() => (showMapPicker = !showMapPicker)}
+									>
+										{showMapPicker ? 'Hide Map' : 'Show Map'}
+									</Button>
+								</div>
+
+								{#if showMapPicker}
+									<div class="grid gap-2">
+										<Label>Select Location on Map</Label>
+										<MapPicker
+											bind:latitude={newAddress.latitude}
+											bind:longitude={newAddress.longitude}
+											onLocationChange={handleLocationChange}
+										/>
+									</div>
+								{/if}
 
 								<div class="grid gap-2">
 									<Label>Street Address</Label>
