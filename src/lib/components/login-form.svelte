@@ -8,6 +8,7 @@
 		FieldLabel,
 		FieldDescription,
 	} from "$lib/components/ui/field/index.js";
+	import * as InputOTP from "$lib/components/ui/input-otp/index.js";
 	import { toast } from "svelte-sonner";
 	import { goto } from "$app/navigation";
 
@@ -154,23 +155,23 @@
 				<FieldGroup>
 					<Field>
 						<FieldLabel>Enter OTP</FieldLabel>
-						<Input 
-							type="text" 
-							inputmode="numeric" 
-							pattern="[0-9]*"
-							maxlength={6}
-							placeholder="000000"
-							bind:value={otp}
-							disabled={verifyingOTP}
-							class="text-center text-2xl tracking-widest font-mono"
-							oninput={(e) => {
-								const value = e.currentTarget.value.replace(/\D/g, '').slice(0, 6);
-								otp = value;
-								if (value.length === 6) {
-									handleOTPChange(value);
-								}
-							}}
-						/>
+						<div class="flex justify-center">
+							<InputOTP.Root maxlength={6} bind:value={otp} onValueChange={handleOTPChange} disabled={verifyingOTP}>
+								{#snippet children({ cells })}
+									<InputOTP.Group>
+										{#each cells.slice(0, 3) as cell}
+											<InputOTP.Slot {cell} />
+										{/each}
+									</InputOTP.Group>
+									<InputOTP.Separator />
+									<InputOTP.Group>
+										{#each cells.slice(3, 6) as cell}
+											<InputOTP.Slot {cell} />
+										{/each}
+									</InputOTP.Group>
+								{/snippet}
+							</InputOTP.Root>
+						</div>
 					</Field>
 					<Field>
 						<Button type="submit" class="w-full" disabled={verifyingOTP || otp.length !== 6}>
