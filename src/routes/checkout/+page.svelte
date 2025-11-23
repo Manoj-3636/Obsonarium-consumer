@@ -187,7 +187,9 @@
 		endDate.setHours(11, 0, 0, 0);
 		
 		const formatDate = (date: Date) => {
-			return date.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
+			// Convert to UTC and format as YYYYMMDDTHHMMSSZ
+			const iso = date.toISOString();
+			return iso.replace(/[-:]/g, '').split('.')[0] + 'Z';
 		};
 		
 		const dates = `${formatDate(startDate)}/${formatDate(endDate)}`;

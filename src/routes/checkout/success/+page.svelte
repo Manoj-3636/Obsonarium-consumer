@@ -27,7 +27,9 @@
 		endDate.setHours(11, 0, 0, 0);
 		
 		const formatDate = (date: Date) => {
-			return date.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
+			// Convert to UTC and format as YYYYMMDDTHHMMSSZ
+			const iso = date.toISOString();
+			return iso.replace(/[-:]/g, '').split('.')[0] + 'Z';
 		};
 		
 		const dates = `${formatDate(startDate)}/${formatDate(endDate)}`;
@@ -56,18 +58,17 @@
 			{/if}
 		</p>
 		<div class="pt-6 flex flex-col items-center gap-4">
-			<Button
+			<a
 				href={googleCalendarUrl()}
 				target="_blank"
 				rel="noopener noreferrer"
-				variant="outline"
-				class="h-12 px-8 text-lg inline-flex items-center gap-2"
+				class="inline-flex items-center gap-2 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors"
 			>
 				<svg class="size-5" viewBox="0 0 24 24" fill="currentColor">
 					<path d="M19 4h-1V2h-2v2H8V2H6v2H5c-1.11 0-1.99.9-1.99 2L3 20c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 16H5V10h14v10zm0-12H5V6h14v2z"/>
 				</svg>
 				Add Delivery to Google Calendar
-			</Button>
+			</a>
 			<Button href="/shop" class="h-12 px-8 text-lg">Continue Shopping</Button>
 		</div>
 	</div>
