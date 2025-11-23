@@ -112,6 +112,11 @@
 			async (position) => {
 				userLat = position.coords.latitude;
 				userLon = position.coords.longitude;
+				console.log('User Location:', {
+					lat: userLat,
+					lon: userLon,
+					accuracy: position.coords.accuracy + ' meters'
+				});
 				locationPermission = 'granted';
 				locationLoading = false;
 
